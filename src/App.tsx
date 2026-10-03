@@ -1,0 +1,379 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import type {
+  AuthStatusResponse,
+  QuotaDataResponse,
+  AccountSummary,
+} from './types.ts';
+import { Header } from './components/Header.tsx';
+import { AccountQuotaCard } from './components/AccountQuotaCard.tsx';
+import { LoginView } from './components/LoginView.tsx';
+import { DiagnosticsModal } from './components/DiagnosticsModal.tsx';
+import { SetupGuideModal } from './components/SetupGuideModal.tsx';
+import { Users, UserPlus, Sparkles, RefreshCw } from 'lucide-react';
+
+export default function App() {
+  const [authStatus, setAuthStatus] = useState<AuthStatusResponse>({
+    authenticated: false,
+    hasConfig: true,
+    redirectUri: '',
+  });
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  // Multi-account states
+  const [accounts, setAccounts] = useState<AccountSummary[]>([]);
+  const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null);
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
+
+  // Active quota data for diagnostics
+  const [activeQuotaData, setActiveQuotaData] = useState<QuotaDataResponse | null>(null);
+
+  // Modals
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
+
+  // Load multi-accounts list
+  const loadAccounts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/accounts');
+      if (res.ok) {
+        const data = await res.json();
+        setAccounts(data.accounts || []);
+      }
+    } catch (err) {
+      console.error('Failed to load accounts list:', err);
+    }
+  }, []);
+
+  // Check auth session without flipping top-level loading screen
+  const checkAuth = useCallback(async () => {
+    try {
+      const res = await fetch('/api/auth/me');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: AuthStatusResponse = await res.json();
+      setAuthStatus(data);
+      return data;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('Failed to check auth status:', msg);
+      return null;
+    }
+  }, []);
+
+  // Sync / Refresh single account
+  const handleRefreshSingleAccount = async (accountId: string) => {
+    try {
+      setSyncingAccountId(accountId);
+      // Switch active and fetch fresh
+      await fetch('/api/accounts/switch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId }),
+      });
+      const quotaRes = await fetch('/api/quota');
+      if (quotaRes.ok) {
+        const qData = await quotaRes.json();
+        setActiveQuotaData(qData);
+      }
+      await loadAccounts();
+    } catch (err) {
+      console.error('Failed to refresh single account:', err);
+    } finally {
+      setSyncingAccountId(null);
+    }
+  };
+
+  // Sync all accounts
+  const handleSyncAll = async () => {
+    try {
+      setIsSyncingAll(true);
+      await fetch('/api/accounts/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      const quotaRes = await fetch('/api/quota');
+      if (quotaRes.ok) {
+        const qData = await quotaRes.json();
+        setActiveQuotaData(qData);
+      }
+      await loadAccounts();
+    } catch (err) {
+      console.error('Failed to sync all accounts:', err);
+    } finally {
+      setIsSyncingAll(false);
+    }
+  };
+
+  // Delete account
+  const handleDeleteAccount = async (accountId: string) => {
+    try {
+      const res = await fetch(`/api/accounts/${accountId}`, { method: 'DELETE' });
+      if (res.ok) {
+        await loadAccounts();
+        await checkAuth();
+      }
+    } catch (err) {
+      console.error('Failed to delete account:', err);
+    }
+  };
+
+  // Unlink account from current workspace
+  const handleUnlinkAccount = async (email: string) => {
+    try {
+      const res = await fetch('/api/accounts/unlink', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        await loadAccounts();
+        await checkAuth();
+      }
+    } catch (err) {
+      console.error('Failed to unlink account:', err);
+    }
+  };
+
+  // Initial bootstrap: parallel load session & accounts once without layout shifts
+  useEffect(() => {
+    let mounted = true;
+    Promise.allSettled([checkAuth(), loadAccounts()]).finally(() => {
+      if (mounted) {
+        setIsInitialLoading(false);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [checkAuth, loadAccounts]);
+
+  // Google OAuth login to connect or link an account
+  const handleConnectAccount = async (mode: 'login' | 'link' = authStatus.authenticated ? 'link' : 'login') => {
+    setLoginLoading(true);
+    setLoginError(null);
+    try {
+      const res = await fetch(`/api/auth/url?mode=${mode}`);
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(
+          errJson.error || `HTTP ${res.status}: Failed to get OAuth authorization URL`
+        );
+      }
+      const { url } = await res.json();
+      if (!url) throw new Error('Authorization URL was empty.');
+
+      const width = 540;
+      const height = 660;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+
+      const popup = window.open(
+        url,
+        'google_oauth_popup',
+        `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes`
+      );
+
+      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        window.location.href = url;
+        return;
+      }
+
+      let completed = false;
+
+      const finishLogin = async () => {
+        if (completed) return;
+        completed = true;
+        setLoginLoading(false);
+        try {
+          await checkAuth();
+          await fetch('/api/accounts/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}',
+          });
+          await loadAccounts();
+        } catch (e) {
+          console.error('Error refreshing post-login:', e);
+        }
+      };
+
+      const messageListener = async (event: MessageEvent) => {
+        if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+          window.removeEventListener('message', messageListener);
+          await finishLogin();
+        }
+      };
+      window.addEventListener('message', messageListener);
+
+      const checkPopupInterval = window.setInterval(async () => {
+        if (popup.closed) {
+          window.clearInterval(checkPopupInterval);
+          window.removeEventListener('message', messageListener);
+          await finishLogin();
+        }
+      }, 600);
+    } catch (err) {
+      setLoginLoading(false);
+      const msg = err instanceof Error ? err.message : String(err);
+      setLoginError(msg);
+    }
+  };
+
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (err) {
+      console.warn('Logout request failed:', err);
+    }
+    setAuthStatus((prev) => ({ ...prev, authenticated: false, user: undefined }));
+    setAccounts([]);
+    setActiveQuotaData(null);
+  };
+
+  const proAccounts = accounts.filter((acc) => {
+    const tier = (
+      acc.tier ||
+      acc.quota?.tierInfo?.currentTier ||
+      (acc.quota?.models && acc.quota.models[0]?.tier) ||
+      ''
+    ).toLowerCase();
+    return tier.includes('pro') || tier.includes('ultra') || tier.includes('teams');
+  });
+
+  const standardAccounts = accounts.filter((acc) => {
+    const tier = (
+      acc.tier ||
+      acc.quota?.tierInfo?.currentTier ||
+      (acc.quota?.models && acc.quota.models[0]?.tier) ||
+      ''
+    ).toLowerCase();
+    return !(tier.includes('pro') || tier.includes('ultra') || tier.includes('teams'));
+  });
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 selection:bg-sky-500/30 selection:text-sky-200">
+      <Header
+        user={authStatus.user ? { ...authStatus.user, id: '', authenticated: authStatus.authenticated } : null}
+        loading={isSyncingAll}
+        onRefreshAll={handleSyncAll}
+        onAddAccount={() => handleConnectAccount()}
+        onLogout={handleLogout}
+        onOpenDiagnostics={() => setDiagnosticsOpen(true)}
+        onOpenGuide={() => setGuideOpen(true)}
+        accountsCount={accounts.length}
+      />
+
+      <main className="max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-9 space-y-8">
+        {isInitialLoading && accounts.length === 0 ? (
+          <div className="min-h-[calc(100vh-140px)] flex flex-col items-center justify-center gap-3">
+            <div className="w-7 h-7 rounded-full border-2 border-sky-500 border-t-transparent animate-spin" />
+            <span className="text-xs text-zinc-400 font-medium tracking-wide">
+              Loading Google Accounts &amp; Quotas...
+            </span>
+          </div>
+        ) : accounts.length > 0 ? (
+          <div className="space-y-6">
+            {/* 3-Column Layout with explicit dedicated vertical dotted divider column */}
+            <div className="flex flex-col lg:flex-row items-stretch gap-6 lg:gap-8">
+              {/* Left Section: Google AI Pro (takes 2/3 width) */}
+              <div className="flex-1 lg:flex-[2] space-y-3.5 min-w-0">
+                <div className="flex items-center gap-2 px-0.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-sm shadow-sky-400/50" />
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                    Google AI Pro
+                  </h3>
+                </div>
+
+                {proAccounts.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {proAccounts.map((acc) => (
+                      <AccountQuotaCard
+                        key={acc._id}
+                        account={acc}
+                        onRefreshAccount={handleRefreshSingleAccount}
+                        onDeleteAccount={handleDeleteAccount}
+                        onUnlinkAccount={handleUnlinkAccount}
+                        canUnlink={accounts.length > 1}
+                        isSyncing={syncingAccountId === acc._id || isSyncingAll}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 rounded-xl border border-dashed border-zinc-800 text-center text-xs text-zinc-500">
+                    No Google AI Pro accounts connected.
+                  </div>
+                )}
+              </div>
+
+              {/* Dedicated Vertical Dotted Divider (Bold, large round dots with clean rhythm) */}
+              <div
+                className="hidden lg:flex flex-col items-center justify-center shrink-0 self-stretch px-2 select-none"
+                aria-hidden="true"
+              >
+                <div className="w-[3px] h-full rounded-full border-r-[3px] border-dotted border-zinc-500/90" />
+              </div>
+
+              {/* Right Section: Starter (takes 1/3 width, exact same card width as AI Pro) */}
+              <div className="flex-1 lg:flex-[1] space-y-3.5 min-w-0">
+                <div className="flex items-center gap-2 px-0.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-zinc-500" />
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                    Starter
+                  </h3>
+                </div>
+
+                {standardAccounts.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-5">
+                    {standardAccounts.map((acc) => (
+                      <AccountQuotaCard
+                        key={acc._id}
+                        account={acc}
+                        onRefreshAccount={handleRefreshSingleAccount}
+                        onDeleteAccount={handleDeleteAccount}
+                        onUnlinkAccount={handleUnlinkAccount}
+                        canUnlink={accounts.length > 1}
+                        isSyncing={syncingAccountId === acc._id || isSyncingAll}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 rounded-xl border border-dashed border-zinc-800 text-center text-xs text-zinc-500">
+                    No starter accounts connected.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <LoginView
+            onLogin={() => handleConnectAccount('login')}
+            onOpenGuide={() => setGuideOpen(true)}
+            loading={loginLoading}
+            hasConfig={authStatus.hasConfig}
+            missingVars={authStatus.missingVars}
+            redirectUri={authStatus.redirectUri}
+            clientId={authStatus.clientId}
+            projectId={authStatus.projectId}
+            error={loginError}
+          />
+        )}
+      </main>
+
+      <DiagnosticsModal
+        isOpen={diagnosticsOpen}
+        onClose={() => setDiagnosticsOpen(false)}
+        diagnostics={activeQuotaData?.diagnostics || null}
+        quotaData={activeQuotaData}
+      />
+
+      <SetupGuideModal
+        isOpen={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        redirectUri={authStatus.redirectUri}
+      />
+    </div>
+  );
+}

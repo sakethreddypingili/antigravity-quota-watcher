@@ -1,0 +1,6 @@
+{
+  "name": "Antigravity Quota Watcher",
+  "description": "View Google Antigravity and Cloud Code Assist usage and quota limits with Google OAuth.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
