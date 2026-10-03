@@ -310,86 +310,142 @@ function computeQuotaStatus(remainingFraction) {
 }
 function queryLocalUserStatus(server) {
   return new Promise((resolve) => {
-    const options = {
-      hostname: "127.0.0.1",
-      port: server.port,
-      path: "/exa.language_server_pb.LanguageServerService/GetUserStatus",
-      method: "POST",
-      rejectUnauthorized: false,
-      timeout: 4e3,
-      headers: {
-        "Content-Type": "application/json",
-        "X-Codeium-Csrf-Token": server.csrfToken
-      }
-    };
-    const req = https.request(options, (res) => {
-      let responseBody = "";
-      res.on("data", (chunk) => {
-        responseBody += chunk;
+    const sendRpc = (path2) => {
+      return new Promise((resRpc) => {
+        const options = {
+          hostname: "127.0.0.1",
+          port: server.port,
+          path: path2,
+          method: "POST",
+          rejectUnauthorized: false,
+          timeout: 4e3,
+          headers: {
+            "Content-Type": "application/json",
+            "X-Codeium-Csrf-Token": server.csrfToken
+          }
+        };
+        const req = https.request(options, (res) => {
+          let body = "";
+          res.on("data", (chunk) => {
+            body += chunk;
+          });
+          res.on("end", () => resRpc({ statusCode: res.statusCode || 0, body }));
+        });
+        req.on("timeout", () => {
+          req.destroy();
+          resRpc({ statusCode: 408, body: "" });
+        });
+        req.on("error", () => resRpc({ statusCode: 500, body: "" }));
+        req.write("{}");
+        req.end();
       });
-      res.on("end", () => {
-        if (res.statusCode !== 200) {
-          return resolve({
-            success: false,
-            models: [],
-            port: server.port,
-            error: `Language server returned HTTP ${res.statusCode}`
+    };
+    Promise.all([
+      sendRpc("/exa.language_server_pb.LanguageServerService/GetUserStatus"),
+      sendRpc("/exa.language_server_pb.LanguageServerService/RetrieveUserQuotaSummary")
+    ]).then(([userRes, quotaRes]) => {
+      if (userRes.statusCode !== 200) {
+        return resolve({
+          success: false,
+          models: [],
+          port: server.port,
+          error: `Language server returned HTTP ${userRes.statusCode}`
+        });
+      }
+      try {
+        const data = JSON.parse(userRes.body);
+        let quotaSummaryData = null;
+        if (quotaRes.statusCode === 200 && quotaRes.body) {
+          try {
+            quotaSummaryData = JSON.parse(quotaRes.body);
+          } catch {
+          }
+        }
+        const userStatus = data.userStatus || {};
+        const tierName = userStatus.userTier?.name || userStatus.userTier?.id || "Google AI Pro";
+        const name = userStatus.name || "Antigravity User";
+        const email = userStatus.email || "";
+        const planStatus = userStatus.planStatus || "ACTIVE";
+        const rawConfigs = userStatus.cascadeModelConfigData?.clientModelConfigs || [];
+        const models = rawConfigs.map((m) => {
+          const id = String(m.modelId || m.modelOrAlias?.model || "unknown-model");
+          const displayName = String(m.label || id);
+          const family = identifyModelFamily(id + " " + displayName);
+          let remainingFraction = null;
+          let resetTime = null;
+          if (m.quotaInfo && typeof m.quotaInfo === "object") {
+            if (typeof m.quotaInfo.remainingFraction === "number") {
+              remainingFraction = Math.max(0, Math.min(1, m.quotaInfo.remainingFraction));
+            }
+            if (typeof m.quotaInfo.resetTime === "string") {
+              resetTime = m.quotaInfo.resetTime;
+            }
+          }
+          const { formatted: resetTimeFormatted, relative: resetTimeRelative } = formatResetTime(resetTime);
+          const status = computeQuotaStatus(remainingFraction);
+          const remainingPercentage = remainingFraction !== null ? Math.round(remainingFraction * 100) : null;
+          const usedPercentage = remainingPercentage !== null ? Math.max(0, 100 - remainingPercentage) : null;
+          return {
+            id,
+            displayName,
+            family,
+            remainingFraction,
+            remainingPercentage,
+            usedPercentage,
+            status,
+            resetTime,
+            resetTimeFormatted,
+            resetTimeRelative,
+            tier: tierName
+          };
+        });
+        models.sort((a, b) => {
+          const familyWeight = (f) => {
+            if (f === "gemini") return 1;
+            if (f === "claude") return 2;
+            if (f === "gpt") return 3;
+            return 4;
+          };
+          const diff = familyWeight(a.family) - familyWeight(b.family);
+          if (diff !== 0) return diff;
+          return a.displayName.localeCompare(b.displayName);
+        });
+        let groups = [];
+        if (quotaSummaryData?.response?.groups && Array.isArray(quotaSummaryData.response.groups)) {
+          groups = quotaSummaryData.response.groups.map((g) => {
+            const buckets = Array.isArray(g.buckets) ? g.buckets.map((b) => {
+              const fraction = typeof b.remainingFraction === "number" ? b.remainingFraction : null;
+              const pct = fraction !== null ? Math.round(fraction * 100) : null;
+              const { formatted, relative } = formatResetTime(b.resetTime);
+              let timerRelative = relative;
+              if (b.description && typeof b.description === "string") {
+                const match = b.description.match(/refresh in ([^.]+)/i);
+                if (match) {
+                  timerRelative = match[1].trim();
+                }
+              }
+              return {
+                bucketId: String(b.bucketId || ""),
+                displayName: String(b.displayName || "Limit Remaining"),
+                window: b.window ? String(b.window) : void 0,
+                resetTime: b.resetTime ? String(b.resetTime) : null,
+                resetTimeFormatted: formatted,
+                resetTimeRelative: timerRelative,
+                description: b.description ? String(b.description) : null,
+                remainingFraction: fraction,
+                remainingPercentage: pct
+              };
+            }) : [];
+            return {
+              displayName: String(g.displayName || "Models"),
+              description: g.description ? String(g.description) : void 0,
+              buckets
+            };
           });
         }
-        try {
-          const data = JSON.parse(responseBody);
-          const userStatus = data.userStatus || {};
-          const tierName = userStatus.userTier?.name || userStatus.userTier?.id || "Google AI Pro";
-          const name = userStatus.name || "Antigravity User";
-          const email = userStatus.email || "";
-          const planStatus = userStatus.planStatus || "ACTIVE";
-          const rawConfigs = userStatus.cascadeModelConfigData?.clientModelConfigs || [];
-          const models = rawConfigs.map((m) => {
-            const id = String(m.modelId || m.modelOrAlias?.model || "unknown-model");
-            const displayName = String(m.label || id);
-            const family = identifyModelFamily(id + " " + displayName);
-            let remainingFraction = null;
-            let resetTime = null;
-            if (m.quotaInfo && typeof m.quotaInfo === "object") {
-              if (typeof m.quotaInfo.remainingFraction === "number") {
-                remainingFraction = Math.max(0, Math.min(1, m.quotaInfo.remainingFraction));
-              }
-              if (typeof m.quotaInfo.resetTime === "string") {
-                resetTime = m.quotaInfo.resetTime;
-              }
-            }
-            const { formatted: resetTimeFormatted, relative: resetTimeRelative } = formatResetTime(resetTime);
-            const status = computeQuotaStatus(remainingFraction);
-            const remainingPercentage = remainingFraction !== null ? Math.round(remainingFraction * 100) : null;
-            const usedPercentage = remainingPercentage !== null ? Math.max(0, 100 - remainingPercentage) : null;
-            return {
-              id,
-              displayName,
-              family,
-              remainingFraction,
-              remainingPercentage,
-              usedPercentage,
-              status,
-              resetTime,
-              resetTimeFormatted,
-              resetTimeRelative,
-              tier: tierName
-            };
-          });
-          models.sort((a, b) => {
-            const familyWeight = (f) => {
-              if (f === "gemini") return 1;
-              if (f === "claude") return 2;
-              if (f === "gpt") return 3;
-              return 4;
-            };
-            const diff = familyWeight(a.family) - familyWeight(b.family);
-            if (diff !== 0) return diff;
-            return a.displayName.localeCompare(b.displayName);
-          });
+        if (groups.length === 0) {
           const geminiList = models.filter((m) => m.family === "gemini");
           const claudeList = models.filter((m) => m.family === "claude" || m.family === "gpt");
-          const groups = [];
           if (geminiList.length > 0) {
             const minFrac = Math.min(...geminiList.map((m) => m.remainingFraction ?? 1));
             const firstReset = geminiList.find((m) => m.resetTime);
@@ -460,49 +516,37 @@ function queryLocalUserStatus(server) {
               ]
             });
           }
-          return resolve({
-            success: true,
-            user: {
-              name,
-              email,
-              planStatus,
-              tierName
-            },
-            models,
-            groups,
-            port: server.port,
-            raw: data
-          });
-        } catch (parseErr) {
-          const msg = parseErr instanceof Error ? parseErr.message : String(parseErr);
-          return resolve({
-            success: false,
-            models: [],
-            port: server.port,
-            error: `Failed to parse language server response: ${msg}`
-          });
         }
-      });
-    });
-    req.on("timeout", () => {
-      req.destroy();
+        return resolve({
+          success: true,
+          user: {
+            name,
+            email,
+            planStatus,
+            tierName
+          },
+          models,
+          groups,
+          port: server.port,
+          raw: data
+        });
+      } catch (parseErr) {
+        const msg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+        return resolve({
+          success: false,
+          models: [],
+          port: server.port,
+          error: `Failed to parse language server response: ${msg}`
+        });
+      }
+    }).catch((err) => {
       resolve({
         success: false,
         models: [],
         port: server.port,
-        error: "Timeout connecting to Antigravity Language Server"
+        error: `Failed to connect to Antigravity Language Server on port ${server.port}: ${err?.message || err}`
       });
     });
-    req.on("error", (err) => {
-      resolve({
-        success: false,
-        models: [],
-        port: server.port,
-        error: `Failed to connect to Antigravity Language Server on port ${server.port}: ${err.message}`
-      });
-    });
-    req.write("{}");
-    req.end();
   });
 }
 
@@ -931,13 +975,20 @@ async function fetchAntigravityQuota(accessToken) {
         const fraction = typeof b.remainingFraction === "number" ? b.remainingFraction : null;
         const pct = fraction !== null ? Math.round(fraction * 100) : null;
         const { formatted, relative } = formatResetTime(b.resetTime);
+        let timerRelative = relative;
+        if (b.description && typeof b.description === "string") {
+          const match = b.description.match(/refresh in ([^.]+)/i);
+          if (match) {
+            timerRelative = match[1].trim();
+          }
+        }
         return {
           bucketId: String(b.bucketId || ""),
           displayName: String(b.displayName || "Limit Remaining"),
           window: b.window ? String(b.window) : void 0,
           resetTime: b.resetTime ? String(b.resetTime) : null,
           resetTimeFormatted: formatted,
-          resetTimeRelative: relative,
+          resetTimeRelative: timerRelative,
           description: b.description ? String(b.description) : null,
           remainingFraction: fraction,
           remainingPercentage: pct

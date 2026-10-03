@@ -92,37 +92,56 @@ function computeQuotaStatus(remainingFraction: number | null | undefined): Quota
  */
 export function queryLocalUserStatus(server: LocalServerInfo): Promise<LocalUserStatusResult> {
   return new Promise((resolve) => {
-    const options: https.RequestOptions = {
-      hostname: '127.0.0.1',
-      port: server.port,
-      path: '/exa.language_server_pb.LanguageServerService/GetUserStatus',
-      method: 'POST',
-      rejectUnauthorized: false,
-      timeout: 4000,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Codeium-Csrf-Token': server.csrfToken,
-      },
+    // Helper to send JSON RPC request to local language server
+    const sendRpc = (path: string): Promise<{ statusCode: number; body: string }> => {
+      return new Promise((resRpc) => {
+        const options: https.RequestOptions = {
+          hostname: '127.0.0.1',
+          port: server.port,
+          path,
+          method: 'POST',
+          rejectUnauthorized: false,
+          timeout: 4000,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Codeium-Csrf-Token': server.csrfToken,
+          },
+        };
+        const req = https.request(options, (res) => {
+          let body = '';
+          res.on('data', (chunk) => { body += chunk; });
+          res.on('end', () => resRpc({ statusCode: res.statusCode || 0, body }));
+        });
+        req.on('timeout', () => { req.destroy(); resRpc({ statusCode: 408, body: '' }); });
+        req.on('error', () => resRpc({ statusCode: 500, body: '' }));
+        req.write('{}');
+        req.end();
+      });
     };
 
-    const req = https.request(options, (res) => {
-      let responseBody = '';
-      res.on('data', (chunk) => {
-        responseBody += chunk;
-      });
+    Promise.all([
+      sendRpc('/exa.language_server_pb.LanguageServerService/GetUserStatus'),
+      sendRpc('/exa.language_server_pb.LanguageServerService/RetrieveUserQuotaSummary'),
+    ]).then(([userRes, quotaRes]) => {
+      if (userRes.statusCode !== 200) {
+        return resolve({
+          success: false,
+          models: [],
+          port: server.port,
+          error: `Language server returned HTTP ${userRes.statusCode}`,
+        });
+      }
 
-      res.on('end', () => {
-        if (res.statusCode !== 200) {
-          return resolve({
-            success: false,
-            models: [],
-            port: server.port,
-            error: `Language server returned HTTP ${res.statusCode}`,
-          });
+      try {
+        const data = JSON.parse(userRes.body);
+        let quotaSummaryData: any = null;
+        if (quotaRes.statusCode === 200 && quotaRes.body) {
+          try {
+            quotaSummaryData = JSON.parse(quotaRes.body);
+          } catch {
+            // ignore JSON error
+          }
         }
-
-        try {
-          const data = JSON.parse(responseBody);
           const userStatus = data.userStatus || {};
           const tierName = userStatus.userTier?.name || userStatus.userTier?.id || 'Google AI Pro';
           const name = userStatus.name || 'Antigravity User';
@@ -180,94 +199,134 @@ export function queryLocalUserStatus(server: LocalServerInfo): Promise<LocalUser
             return a.displayName.localeCompare(b.displayName);
           });
 
-          // Build dynamic quota groups for local server
-          const geminiList = models.filter((m) => m.family === 'gemini');
-          const claudeList = models.filter((m) => m.family === 'claude' || m.family === 'gpt');
+          // Parse official groups from RetrieveUserQuotaSummary if present
+          let groups: QuotaGroup[] = [];
+          if (quotaSummaryData?.response?.groups && Array.isArray(quotaSummaryData.response.groups)) {
+            groups = quotaSummaryData.response.groups.map((g: any) => {
+              const buckets = Array.isArray(g.buckets)
+                ? g.buckets.map((b: any) => {
+                    const fraction = typeof b.remainingFraction === 'number' ? b.remainingFraction : null;
+                    const pct = fraction !== null ? Math.round(fraction * 100) : null;
+                    const { formatted, relative } = formatResetTime(b.resetTime);
 
-          const groups: QuotaGroup[] = [];
-          if (geminiList.length > 0) {
-            const minFrac = Math.min(...geminiList.map((m) => m.remainingFraction ?? 1));
-            const firstReset = geminiList.find((m) => m.resetTime);
-            const weeklyCycle = getNextWeeklyResetTime();
+                    // Prefer real Google relative description if available (e.g. "it will fully refresh in 6 days, 22 hours.")
+                    let timerRelative = relative;
+                    if (b.description && typeof b.description === 'string') {
+                      const match = b.description.match(/refresh in ([^.]+)/i);
+                      if (match) {
+                        timerRelative = match[1].trim();
+                      }
+                    }
 
-            // Weekly pool: represents 7-day cumulative window capacity (starts at 100%, draws down proportionally over weekly cycle)
-            const weeklyFraction = Math.min(1, Math.max(0.01, minFrac < 1 ? minFrac * 0.9 + 0.1 : 1));
-            const weeklyPct = Math.round(weeklyFraction * 100);
-
-            groups.push({
-              displayName: 'Gemini Models',
-              description: 'Shared quota pool across all Gemini models',
-              buckets: [
-                {
-                  bucketId: 'gemini-weekly',
-                  displayName: 'Weekly Limit Remaining',
-                  window: 'weekly',
-                  remainingFraction: weeklyFraction,
-                  remainingPercentage: weeklyPct,
-                  resetTime: weeklyCycle.iso,
-                  resetTimeFormatted: weeklyCycle.formatted,
-                  resetTimeRelative: weeklyCycle.relative,
-                  description: weeklyFraction < 1
-                    ? `You have used some of your weekly limit, it will fully refresh in ${weeklyCycle.relative}.`
-                    : 'Window has not started yet. Will start countdown upon first usage.',
-                },
-                {
-                  bucketId: 'gemini-5h',
-                  displayName: 'Five Hour Limit Remaining',
-                  window: '5h',
-                  remainingFraction: minFrac,
-                  remainingPercentage: Math.round(minFrac * 100),
-                  resetTime: firstReset?.resetTime || null,
-                  resetTimeFormatted: firstReset?.resetTimeFormatted || null,
-                  resetTimeRelative: firstReset?.resetTimeRelative || null,
-                  description: minFrac < 1
-                    ? (firstReset?.resetTimeRelative ? `You have used some of your 5-hour limit, it will fully refresh in ${firstReset.resetTimeRelative}.` : 'You have used some of your 5-hour limit.')
-                    : 'Window has not started yet. 5-hour rolling pool is 100% available.',
-                },
-              ],
+                    return {
+                      bucketId: String(b.bucketId || ''),
+                      displayName: String(b.displayName || 'Limit Remaining'),
+                      window: b.window ? String(b.window) : undefined,
+                      resetTime: b.resetTime ? String(b.resetTime) : null,
+                      resetTimeFormatted: formatted,
+                      resetTimeRelative: timerRelative,
+                      description: b.description ? String(b.description) : null,
+                      remainingFraction: fraction,
+                      remainingPercentage: pct,
+                    };
+                  })
+                : [];
+              return {
+                displayName: String(g.displayName || 'Models'),
+                description: g.description ? String(g.description) : undefined,
+                buckets,
+              };
             });
           }
 
-          if (claudeList.length > 0) {
-            const minFrac = Math.min(...claudeList.map((m) => m.remainingFraction ?? 1));
-            const firstReset = claudeList.find((m) => m.resetTime);
-            const weeklyCycle = getNextWeeklyResetTime();
+          // Fallback only if RetrieveUserQuotaSummary returned no groups
+          if (groups.length === 0) {
+            const geminiList = models.filter((m) => m.family === 'gemini');
+            const claudeList = models.filter((m) => m.family === 'claude' || m.family === 'gpt');
 
-            const weeklyFraction = Math.min(1, Math.max(0.01, minFrac < 1 ? minFrac * 0.9 + 0.1 : 1));
-            const weeklyPct = Math.round(weeklyFraction * 100);
+            if (geminiList.length > 0) {
+              const minFrac = Math.min(...geminiList.map((m) => m.remainingFraction ?? 1));
+              const firstReset = geminiList.find((m) => m.resetTime);
+              const weeklyCycle = getNextWeeklyResetTime();
 
-            groups.push({
-              displayName: 'Claude and GPT models',
-              description: 'Shared quota pool across Claude and GPT models',
-              buckets: [
-                {
-                  bucketId: '3p-weekly',
-                  displayName: 'Weekly Limit Remaining',
-                  window: 'weekly',
-                  remainingFraction: weeklyFraction,
-                  remainingPercentage: weeklyPct,
-                  resetTime: weeklyCycle.iso,
-                  resetTimeFormatted: weeklyCycle.formatted,
-                  resetTimeRelative: weeklyCycle.relative,
-                  description: weeklyFraction < 1
-                    ? `You have used some of your weekly limit, it will fully refresh in ${weeklyCycle.relative}.`
-                    : 'Window has not started yet. Will start countdown upon first usage.',
-                },
-                {
-                  bucketId: '3p-5h',
-                  displayName: 'Five Hour Limit Remaining',
-                  window: '5h',
-                  remainingFraction: minFrac,
-                  remainingPercentage: Math.round(minFrac * 100),
-                  resetTime: firstReset?.resetTime || null,
-                  resetTimeFormatted: firstReset?.resetTimeFormatted || null,
-                  resetTimeRelative: firstReset?.resetTimeRelative || null,
-                  description: minFrac < 1
-                    ? (firstReset?.resetTimeRelative ? `You have used some of your 5-hour limit, it will fully refresh in ${firstReset.resetTimeRelative}.` : 'You have used some of your 5-hour limit.')
-                    : 'Window has not started yet. 5-hour rolling pool is 100% available.',
-                },
-              ],
-            });
+              const weeklyFraction = Math.min(1, Math.max(0.01, minFrac < 1 ? minFrac * 0.9 + 0.1 : 1));
+              const weeklyPct = Math.round(weeklyFraction * 100);
+
+              groups.push({
+                displayName: 'Gemini Models',
+                description: 'Shared quota pool across all Gemini models',
+                buckets: [
+                  {
+                    bucketId: 'gemini-weekly',
+                    displayName: 'Weekly Limit Remaining',
+                    window: 'weekly',
+                    remainingFraction: weeklyFraction,
+                    remainingPercentage: weeklyPct,
+                    resetTime: weeklyCycle.iso,
+                    resetTimeFormatted: weeklyCycle.formatted,
+                    resetTimeRelative: weeklyCycle.relative,
+                    description: weeklyFraction < 1
+                      ? `You have used some of your weekly limit, it will fully refresh in ${weeklyCycle.relative}.`
+                      : 'Window has not started yet. Will start countdown upon first usage.',
+                  },
+                  {
+                    bucketId: 'gemini-5h',
+                    displayName: 'Five Hour Limit Remaining',
+                    window: '5h',
+                    remainingFraction: minFrac,
+                    remainingPercentage: Math.round(minFrac * 100),
+                    resetTime: firstReset?.resetTime || null,
+                    resetTimeFormatted: firstReset?.resetTimeFormatted || null,
+                    resetTimeRelative: firstReset?.resetTimeRelative || null,
+                    description: minFrac < 1
+                      ? (firstReset?.resetTimeRelative ? `You have used some of your 5-hour limit, it will fully refresh in ${firstReset.resetTimeRelative}.` : 'You have used some of your 5-hour limit.')
+                      : 'Window has not started yet. 5-hour rolling pool is 100% available.',
+                  },
+                ],
+              });
+            }
+
+            if (claudeList.length > 0) {
+              const minFrac = Math.min(...claudeList.map((m) => m.remainingFraction ?? 1));
+              const firstReset = claudeList.find((m) => m.resetTime);
+              const weeklyCycle = getNextWeeklyResetTime();
+
+              const weeklyFraction = Math.min(1, Math.max(0.01, minFrac < 1 ? minFrac * 0.9 + 0.1 : 1));
+              const weeklyPct = Math.round(weeklyFraction * 100);
+
+              groups.push({
+                displayName: 'Claude and GPT models',
+                description: 'Shared quota pool across Claude and GPT models',
+                buckets: [
+                  {
+                    bucketId: '3p-weekly',
+                    displayName: 'Weekly Limit Remaining',
+                    window: 'weekly',
+                    remainingFraction: weeklyFraction,
+                    remainingPercentage: weeklyPct,
+                    resetTime: weeklyCycle.iso,
+                    resetTimeFormatted: weeklyCycle.formatted,
+                    resetTimeRelative: weeklyCycle.relative,
+                    description: weeklyFraction < 1
+                      ? `You have used some of your weekly limit, it will fully refresh in ${weeklyCycle.relative}.`
+                      : 'Window has not started yet. Will start countdown upon first usage.',
+                  },
+                  {
+                    bucketId: '3p-5h',
+                    displayName: 'Five Hour Limit Remaining',
+                    window: '5h',
+                    remainingFraction: minFrac,
+                    remainingPercentage: Math.round(minFrac * 100),
+                    resetTime: firstReset?.resetTime || null,
+                    resetTimeFormatted: firstReset?.resetTimeFormatted || null,
+                    resetTimeRelative: firstReset?.resetTimeRelative || null,
+                    description: minFrac < 1
+                      ? (firstReset?.resetTimeRelative ? `You have used some of your 5-hour limit, it will fully refresh in ${firstReset.resetTimeRelative}.` : 'You have used some of your 5-hour limit.')
+                      : 'Window has not started yet. 5-hour rolling pool is 100% available.',
+                  },
+                ],
+              });
+            }
           }
 
           return resolve({
@@ -292,29 +351,14 @@ export function queryLocalUserStatus(server: LocalServerInfo): Promise<LocalUser
             error: `Failed to parse language server response: ${msg}`,
           });
         }
+      })
+      .catch((err: any) => {
+        resolve({
+          success: false,
+          models: [],
+          port: server.port,
+          error: `Failed to connect to Antigravity Language Server on port ${server.port}: ${err?.message || err}`,
+        });
       });
-    });
-
-    req.on('timeout', () => {
-      req.destroy();
-      resolve({
-        success: false,
-        models: [],
-        port: server.port,
-        error: 'Timeout connecting to Antigravity Language Server',
-      });
-    });
-
-    req.on('error', (err) => {
-      resolve({
-        success: false,
-        models: [],
-        port: server.port,
-        error: `Failed to connect to Antigravity Language Server on port ${server.port}: ${err.message}`,
-      });
-    });
-
-    req.write('{}');
-    req.end();
   });
 }

@@ -344,18 +344,30 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
                         // The short timer was erroneously copied from the 5h window. Use the real rolling weekly countdown.
                         timerBadge = `in ${getWeeklyCountdown()}`;
                       } else if (hasStarted) {
-                        if (bucket.resetTimeRelative) {
-                          timerBadge = `in ${bucket.resetTimeRelative}`;
-                        } else if (bucket.description && bucket.description.includes('in ')) {
+                        let rawTimer = bucket.resetTimeRelative;
+                        if (!rawTimer && bucket.description && bucket.description.includes('in ')) {
                           const match = bucket.description.match(/in ([^.]+)/);
-                          timerBadge = match ? `in ${match[1]}` : 'Active';
+                          rawTimer = match ? match[1] : null;
+                        }
+
+                        if (rawTimer) {
+                          // Format cleanly into compact string (e.g. "6 days, 22 hours" -> "6d 22h", "3 hours, 23 minutes" -> "3h 23m")
+                          const clean = rawTimer
+                            .replace(/^in\s+/i, '')
+                            .replace(/(\d+)\s*days?/gi, '$1d')
+                            .replace(/(\d+)\s*hours?/gi, '$1h')
+                            .replace(/(\d+)\s*minutes?/gi, '$1m')
+                            .replace(/(\d+)\s*seconds?/gi, '$1s')
+                            .replace(/,\s*/g, ' ')
+                            .replace(/\s+/g, ' ')
+                            .trim();
+                          timerBadge = `in ${clean}`;
                         } else {
                           timerBadge = 'Active';
                         }
-                      } else if (bucket.window === '5h') {
-                        timerBadge = '5h window';
-                      } else if (isWeekly) {
-                        timerBadge = '7d window';
+                      } else {
+                        // Unused window: clean and consistent status badge across both Weekly and 5-Hour pools
+                        timerBadge = 'Starts on usage';
                       }
 
                       const status = percentage > 30 ? 'healthy' : percentage > 0 ? 'warning' : 'exhausted';

@@ -546,13 +546,20 @@ export async function fetchAntigravityQuota(
             const fraction = typeof b.remainingFraction === 'number' ? b.remainingFraction : null;
             const pct = fraction !== null ? Math.round(fraction * 100) : null;
             const { formatted, relative } = formatResetTime(b.resetTime);
+            let timerRelative = relative;
+            if (b.description && typeof b.description === 'string') {
+              const match = b.description.match(/refresh in ([^.]+)/i);
+              if (match) {
+                timerRelative = match[1].trim();
+              }
+            }
             return {
               bucketId: String(b.bucketId || ''),
               displayName: String(b.displayName || 'Limit Remaining'),
               window: b.window ? String(b.window) : undefined,
               resetTime: b.resetTime ? String(b.resetTime) : null,
               resetTimeFormatted: formatted,
-              resetTimeRelative: relative,
+              resetTimeRelative: timerRelative,
               description: b.description ? String(b.description) : null,
               remainingFraction: fraction,
               remainingPercentage: pct,
