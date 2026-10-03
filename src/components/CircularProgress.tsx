@@ -10,7 +10,7 @@ interface CircularProgressProps {
 export const CircularProgress: React.FC<CircularProgressProps> = ({
   percentage,
   size = 40,
-  strokeWidth = 4,
+  strokeWidth = 4.5,
   status = 'healthy',
 }) => {
   const radius = (size - strokeWidth) / 2;
@@ -18,15 +18,18 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
   const clampedPercentage = Math.max(0, Math.min(100, percentage));
   const strokeDashoffset = circumference - (clampedPercentage / 100) * circumference;
 
-  let strokeColor = '#22c55e'; // green-500 (#22C55E)
-  let bgColor = 'rgba(34, 197, 94, 0.12)';
+  let strokeColor = '#27C981'; // status-success
+  let bgColor = 'rgba(39, 201, 129, 0.12)';
+  let glowColor = 'rgba(39, 201, 129, 0.25)';
 
   if (clampedPercentage <= 10 || status === 'exhausted') {
-    strokeColor = '#ef4444'; // red-500 (#EF4444)
-    bgColor = 'rgba(239, 68, 68, 0.12)';
+    strokeColor = '#D86666'; // status-error
+    bgColor = 'rgba(216, 102, 102, 0.12)';
+    glowColor = 'rgba(216, 102, 102, 0.25)';
   } else if (clampedPercentage <= 30 || status === 'warning') {
-    strokeColor = '#f59e0b'; // amber-500 (#F59E0B)
-    bgColor = 'rgba(245, 158, 11, 0.12)';
+    strokeColor = '#D6A85A'; // status-warning
+    bgColor = 'rgba(214, 168, 90, 0.12)';
+    glowColor = 'rgba(214, 168, 90, 0.25)';
   }
 
   return (
@@ -52,6 +55,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
           strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
           fill="none"
+          style={{ filter: `drop-shadow(0 0 2.5px ${glowColor})` }}
           className="transition-all duration-700 ease-out"
         />
       </svg>

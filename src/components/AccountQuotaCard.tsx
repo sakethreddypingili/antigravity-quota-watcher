@@ -55,29 +55,29 @@ const LimitRow: React.FC<LimitRowProps> = ({
   status,
 }) => {
   return (
-    <div className="flex items-center justify-between px-3.5 py-2.5 rounded-lg bg-zinc-900/60 hover:bg-zinc-900/90 border border-zinc-800/60 shadow-[0_1px_2px_rgba(0,0,0,0.4)] transition-colors duration-150">
+    <div className="flex items-center justify-between px-3.5 py-2.5 rounded-[13px] bg-[#1A1714] hover:bg-[#201C19] border border-[#29231F]/90 shadow-[0_1px_3px_rgba(0,0,0,0.35)] transition-all duration-150">
       <div className="space-y-0.5 pr-2 flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-medium text-zinc-200">{title}</span>
+          <span className="text-[13px] font-[450] text-[#F4EFE7]/90">{title}</span>
           {timerBadge && (
             <span
-              className={`inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-md border ${
+              className={`inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-[6px] border ${
                 hasStarted
-                  ? 'bg-blue-950/30 text-blue-400 border-blue-900/50'
-                  : 'bg-zinc-800/40 text-zinc-400 border-zinc-700/40'
+                  ? 'bg-[#3B82F6]/10 text-[#60A5FA] border-[#3B82F6]/25'
+                  : 'bg-[#151311] text-[#A9A097] border-[#29231F]'
               }`}
             >
-              <Clock className={`w-2.5 h-2.5 ${hasStarted ? 'text-blue-400' : 'text-zinc-500'}`} />
+              <Clock className={`w-2.5 h-2.5 ${hasStarted ? 'text-[#3B82F6]' : 'text-[#706861]'}`} />
               {timerBadge}
             </span>
           )}
         </div>
       </div>
       <div className="flex items-center gap-2.5 shrink-0">
-        <span className="text-sm font-semibold font-mono text-zinc-100 tracking-tight">
+        <span className="text-[15px] font-semibold font-mono text-[#F4EFE7] tracking-tight">
           {percentage}%
         </span>
-        <CircularProgress percentage={percentage} size={28} strokeWidth={3} status={status} />
+        <CircularProgress percentage={percentage} size={28} strokeWidth={3.5} status={status} />
       </div>
     </div>
   );
@@ -200,33 +200,33 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
 
   return (
     <div
-      className={`rounded-xl border transition-all duration-200 flex flex-col justify-between shadow-[0_4px_12px_rgba(0,0,0,0.35)] ${
+      className={`rounded-[20px] border transition-all duration-200 flex flex-col justify-between ${
         account.isActive
-          ? 'bg-zinc-900/80 border-blue-500/40 ring-1 ring-blue-500/10'
-          : 'bg-zinc-900/60 border-zinc-800/80 hover:border-zinc-700/80'
+          ? 'bg-[#0F0E0D] border-[#3B82F6]/30 shadow-[0_0_0_1px_rgba(59,130,246,0.15),0_16px_40px_rgba(0,0,0,0.5)]'
+          : 'bg-[#0F0E0D] border-[#29231F] hover:border-[#3A3029] shadow-[0_16px_40px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.02)]'
       }`}
     >
       <div>
         {/* Account Top Header Banner */}
-        <div className="px-4 py-3 border-b border-zinc-800/70 flex items-center justify-between gap-3 bg-zinc-950/40">
+        <div className="px-4.5 py-3.5 border-b border-[#29231F]/80 flex items-center justify-between gap-3 bg-[#151311]/60 rounded-t-[20px]">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-md bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700/50 shrink-0">
+            <div className="w-8 h-8 rounded-[10px] bg-[#1A1714] flex items-center justify-center overflow-hidden border border-[#29231F] shrink-0">
               {hasValidPicture ? (
                 <img src={account.picture} alt={account.name} className="w-full h-full object-cover" />
               ) : (
-                <User className="w-3.5 h-3.5 text-zinc-400" />
+                <User className="w-4 h-4 text-[#A9A097]" />
               )}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-xs font-semibold text-zinc-100 truncate max-w-[130px]" title={account.name || account.email}>
+                <span className="text-[14px] font-[550] text-[#F4EFE7] truncate max-w-[130px]" title={account.name || account.email}>
                   {account.name || account.email.split('@')[0]}
                 </span>
-                <span className="text-[9px] font-medium font-mono px-1.5 py-0.5 rounded border bg-zinc-800/80 text-zinc-300 border-zinc-700/60">
+                <span className="text-[10px] font-medium font-mono px-2 py-0.5 rounded-[999px] border bg-[#1A1714] text-[#D6B98A] border-[#D6B98A]/20">
                   {tierName}
                 </span>
               </div>
-              <p className="text-[11px] text-zinc-400 truncate max-w-[170px]">{account.email}</p>
+              <p className="text-[12px] text-[#A9A097] truncate max-w-[170px]">{account.email}</p>
             </div>
           </div>
 
@@ -236,9 +236,9 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
               onClick={() => onRefreshAccount(account._id)}
               disabled={isSyncing}
               title="Refresh Quota"
-              className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 transition disabled:opacity-50 cursor-pointer"
+              className="p-1.5 rounded-[8px] text-[#706861] hover:text-[#3B82F6] hover:bg-[#3B82F6]/10 transition disabled:opacity-50 cursor-pointer"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-400' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-[#3B82F6]' : ''}`} />
             </button>
 
             {canUnlink && onUnlinkAccount && (
@@ -249,7 +249,7 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
                   }
                 }}
                 title="Unlink from this group"
-                className="p-1 rounded text-zinc-400 hover:text-amber-400 hover:bg-amber-950/20 transition cursor-pointer"
+                className="p-1.5 rounded-[8px] text-[#706861] hover:text-[#D6A85A] hover:bg-[#D6A85A]/10 transition cursor-pointer"
               >
                 <Unlink2 className="w-3.5 h-3.5" />
               </button>
@@ -262,7 +262,7 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
                 }
               }}
               title="Delete Account"
-              className="p-1 rounded text-zinc-400 hover:text-red-400 hover:bg-red-950/20 transition cursor-pointer"
+              className="p-1.5 rounded-[8px] text-[#706861] hover:text-[#D86666] hover:bg-[#D86666]/10 transition cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -271,19 +271,19 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
 
 
         {/* Quota Sections (Both Weekly and 5-Hour Limit Pools) */}
-        <div className="p-4 space-y-3.5">
+        <div className="p-4.5 space-y-3.5">
           {displayGroups.map((group, gIdx) => {
             const isGemini = group.displayName.toLowerCase().includes('gemini');
             const Icon = isGemini ? Cpu : Box;
 
             return (
               <div key={gIdx} className="space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs">
-                  <Icon className="w-3.5 h-3.5 text-zinc-400" />
-                  <span className="font-medium text-zinc-300">{group.displayName}</span>
+                <div className="flex items-center gap-1.5 text-xs px-0.5">
+                  <Icon className="w-3.5 h-3.5 text-[#A9A097]" />
+                  <span className="font-[500] text-[#A9A097]">{group.displayName}</span>
                 </div>
 
-                <div className="rounded-lg border border-zinc-800/60 bg-zinc-950/50 p-1.5 space-y-1.5">
+                <div className="rounded-[14px] border border-[#29231F] bg-[#151311] p-1.5 space-y-1.5">
                   {(() => {
                     // Check if both weekly and 5h buckets exist in this group
                     const weeklyBucket = group.buckets.find(

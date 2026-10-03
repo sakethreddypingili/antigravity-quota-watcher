@@ -2,26 +2,36 @@
 
 @layer base {
   :root {
-    --bg-base: #09090b;
-    --surface: #111113;
-    --surface-elevated: #18181b;
-    --border-color: #27272a;
-    --text-primary: #f4f4f5;
-    --text-secondary: #a1a1aa;
-    --primary-blue: #3b82f6;
-    --primary-blue-hover: #2563eb;
-    --status-green: #22c55e;
-    --status-amber: #f59e0b;
-    --status-rose: #ef4444;
-    --status-info: #38bdf8;
+    --bg-page: #080706;
+    --surface-main: #0F0E0D;
+    --surface-elevated: #151311;
+    --surface-warm: #1A1714;
+    --surface-espresso: #241C17;
+    --border-subtle: #29231F;
+    --border-warm: #3A3029;
+    --text-primary: #F4EFE7;
+    --text-secondary: #A9A097;
+    --text-muted: #706861;
+    --champagne: #D6B98A;
+    --soft-gold: #BFA06A;
+    --primary-blue: #3B82F6;
+    --primary-blue-hover: #2563EB;
+    --status-success: #27C981;
+    --status-warning: #D6A85A;
+    --status-error: #D86666;
   }
 
   body {
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background-color: #09090b;
-    color: #f4f4f5;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #080706;
+    background-image:
+      radial-gradient(circle at 18% 12%, rgba(214, 185, 138, 0.035), transparent 28%),
+      radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.025), transparent 30%);
+    background-attachment: fixed;
+    color: #F4EFE7;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   code, pre, kbd {
@@ -31,8 +41,8 @@
 
 @layer utilities {
   .dotted-partition {
-    background-image: radial-gradient(circle, #52525b 2.5px, transparent 2.5px);
-    background-size: 100% 20px;
+    background-image: radial-gradient(circle, #3A3029 2px, transparent 2px);
+    background-size: 100% 18px;
     background-repeat: repeat-y;
     background-position: left center;
   }

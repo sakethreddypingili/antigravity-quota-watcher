@@ -280,9 +280,9 @@ export default function App() {
             <div className="flex flex-col lg:flex-row items-stretch gap-6 lg:gap-8">
               {/* Left Section: Google AI Pro (takes 2/3 width) */}
               <div className="flex-1 lg:flex-[2] space-y-3.5 min-w-0">
-                <div className="flex items-center gap-2 px-0.5">
-                  <span className="w-2 h-2 rounded-full bg-blue-500" />
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                <div className="flex items-center gap-2 px-1">
+                  <span className="w-2 h-2 rounded-full bg-[#D6B98A]" />
+                  <h3 className="text-[12px] font-[500] uppercase tracking-[0.08em] text-[#F4EFE7]/90">
                     Google AI Pro
                   </h3>
                 </div>
@@ -302,25 +302,25 @@ export default function App() {
                     ))}
                   </div>
                 ) : (
-                  <div className="p-8 rounded-xl border border-dashed border-zinc-800 text-center text-xs text-zinc-500">
+                  <div className="p-8 rounded-[18px] border border-dashed border-[#29231F] bg-[#0F0E0D]/60 text-center text-xs text-[#706861]">
                     No Google AI Pro accounts connected.
                   </div>
                 )}
               </div>
 
-              {/* Dedicated Vertical Dotted Divider (Bold, large round dots with clean rhythm) */}
+              {/* Dedicated Vertical Dotted Divider (Refined champagne/espresso rhythm) */}
               <div
                 className="hidden lg:flex flex-col items-center justify-center shrink-0 self-stretch px-2 select-none"
                 aria-hidden="true"
               >
-                <div className="w-[3px] h-full rounded-full border-r-[3px] border-dotted border-zinc-500/90" />
+                <div className="w-[1px] h-full border-r border-dotted border-[#3A3029]" />
               </div>
 
               {/* Right Section: Starter (takes 1/3 width, exact same card width as AI Pro) */}
               <div className="flex-1 lg:flex-[1] space-y-3.5 min-w-0">
-                <div className="flex items-center gap-2 px-0.5">
-                  <span className="w-2 h-2 rounded-full bg-zinc-500" />
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                <div className="flex items-center gap-2 px-1">
+                  <span className="w-2 h-2 rounded-full bg-[#706861]" />
+                  <h3 className="text-[12px] font-[500] uppercase tracking-[0.08em] text-[#A9A097]">
                     Starter
                   </h3>
                 </div>
@@ -340,8 +340,14 @@ export default function App() {
                     ))}
                   </div>
                 ) : (
-                  <div className="p-8 rounded-xl border border-dashed border-zinc-800 text-center text-xs text-zinc-500">
-                    No starter accounts connected.
+                  <div className="p-10 rounded-[20px] border border-dashed border-[#29231F]/90 bg-[#0F0E0D]/40 text-center flex flex-col items-center justify-center gap-2 shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
+                    <div className="w-8 h-8 rounded-full bg-[#151311] border border-[#29231F] flex items-center justify-center text-[#706861] text-xs">
+                      ◇
+                    </div>
+                    <div className="text-[13px] font-[500] text-[#A9A097]">Starter Accounts</div>
+                    <p className="text-[12px] text-[#706861] max-w-[220px]">
+                      No standard free tier accounts linked to this workspace.
+                    </p>
                   </div>
                 )}
               </div>
