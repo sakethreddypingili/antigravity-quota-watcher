@@ -61,10 +61,10 @@ const LimitRow: React.FC<LimitRowProps> = ({
           <span className="text-xs font-medium text-zinc-200">{title}</span>
           {timerBadge && (
             <span
-              className={`inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border ${
+              className={`inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-md border ${
                 hasStarted
-                  ? 'bg-blue-950/40 text-blue-300 border-blue-800/40'
-                  : 'bg-zinc-800/60 text-zinc-400 border-zinc-700/40'
+                  ? 'bg-blue-950/30 text-blue-400 border-blue-900/50'
+                  : 'bg-zinc-800/40 text-zinc-400 border-zinc-700/40'
               }`}
             >
               <Clock className={`w-2.5 h-2.5 ${hasStarted ? 'text-blue-400' : 'text-zinc-500'}`} />
@@ -222,13 +222,7 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
                 <span className="text-xs font-semibold text-zinc-100 truncate max-w-[130px]" title={account.name || account.email}>
                   {account.name || account.email.split('@')[0]}
                 </span>
-                <span
-                  className={`text-[9px] font-medium px-1.5 py-0.5 rounded border ${
-                    isProOrUltra
-                      ? 'bg-blue-950/40 text-blue-300 border-blue-800/40'
-                      : 'bg-zinc-800 text-zinc-400 border-zinc-700/50'
-                  }`}
-                >
+                <span className="text-[9px] font-medium font-mono px-1.5 py-0.5 rounded border bg-zinc-800/80 text-zinc-300 border-zinc-700/60">
                   {tierName}
                 </span>
               </div>

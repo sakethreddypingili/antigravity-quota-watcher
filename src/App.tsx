@@ -281,7 +281,7 @@ export default function App() {
               {/* Left Section: Google AI Pro (takes 2/3 width) */}
               <div className="flex-1 lg:flex-[2] space-y-3.5 min-w-0">
                 <div className="flex items-center gap-2 px-0.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-sm shadow-sky-400/50" />
+                  <span className="w-2 h-2 rounded-full bg-blue-500" />
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
                     Google AI Pro
                   </h3>
@@ -319,7 +319,7 @@ export default function App() {
               {/* Right Section: Starter (takes 1/3 width, exact same card width as AI Pro) */}
               <div className="flex-1 lg:flex-[1] space-y-3.5 min-w-0">
                 <div className="flex items-center gap-2 px-0.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-zinc-500" />
+                  <span className="w-2 h-2 rounded-full bg-zinc-500" />
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
                     Starter
                   </h3>
