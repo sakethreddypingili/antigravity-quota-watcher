@@ -1,12 +1,12 @@
 # Antigravity Quota Watcher
 
-A multi-account web application and management dashboard designed to track Google Antigravity and Cloud Code Assist quota limits, rolling consumption windows, tier statuses, and model availability.
+A multi-account web dashboard engineered to track and manage Google Antigravity and Cloud Code Assist quota limits, rolling consumption windows, tier statuses, and model availability.
 
 Powered by Convex Cloud for real-time workspace isolation, multi-tenant persistence, and proactive background token refreshes.
 
 ---
 
-## Architecture
+## Architecture Overview
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -36,10 +36,10 @@ Powered by Convex Cloud for real-time workspace isolation, multi-tenant persiste
 └────────────────────────────────────────────────────────┘
 ```
 
-### Technical Workflow
+### Technical Workflow & Data Isolation
 
 1. **OAuth 2.0 Authorization:** The application initiates authentication via Google OAuth 2.0 with Antigravity-specific scopes (`aicode`, `cclog`, `experimentsandconfigs`).
-2. **Workspace Isolation:** Each Google account belongs to an isolated workspace tenant. Accounts are linked to a shared dashboard only through explicit in-app account linking.
+2. **Workspace Isolation:** Every Google account signs in to its own isolated workspace tenant by default. Accounts are linked to a shared dashboard only through explicit in-app authorization.
 3. **Automated Token Maintenance:** Background workers inspect token expiry before querying upstream endpoints. Tokens within 5 minutes of expiration are automatically refreshed using stored refresh tokens.
 4. **Upstream Quota Fetching:** The backend queries Google Cloud Code Assist internal endpoints to extract quota percentages, rolling reset windows, and model classifications (Claude 3.5 Sonnet, Gemini 1.5 Pro, Flash, etc.).
 
@@ -76,18 +76,18 @@ GOOGLE_CLIENT_SECRET="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"
 GOOGLE_REDIRECT_URI="http://localhost:3001/api/auth/callback"
 ```
 
-### Full Configuration Reference
+### Complete Configuration Reference
 
-| Environment Variable | Description | Requirement | Example / Default |
+| Environment Variable | Description | Requirement | Value / Default |
 | :--- | :--- | :--- | :--- |
-| `CONVEX_URL` | Production URL for Convex Cloud database | Required | `https://your-deployment.convex.cloud` |
-| `VITE_CONVEX_URL` | Frontend URL for Convex Cloud client | Required | `https://your-deployment.convex.cloud` |
+| `CONVEX_URL` | Production URL for Convex Cloud database | Required | `https://opulent-fennec-678.convex.cloud` |
+| `VITE_CONVEX_URL` | Frontend URL for Convex Cloud client | Required | `https://opulent-fennec-678.convex.cloud` |
 | `CONVEX_DEPLOY_KEY` | Convex deployment key for schema sync | Required for deploy | `prod:your-deployment\|...` |
-| `GOOGLE_CLIENT_ID` | OAuth 2.0 Client ID for Antigravity access | Required | `1071006060591-...apps.googleusercontent.com` |
-| `GOOGLE_CLIENT_SECRET` | OAuth 2.0 Client Secret for Antigravity | Required | `GOCSPX-...` |
+| `GOOGLE_CLIENT_ID` | OAuth 2.0 Client ID for Antigravity access | Required | `1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET` | OAuth 2.0 Client Secret for Antigravity | Required | `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` |
 | `GOOGLE_REDIRECT_URI` | Authorized callback endpoint | Optional | `http://localhost:3001/api/auth/callback` |
 | `PORT` | Local server listening port | Optional | `3001` |
-| `SESSION_SECRET` | 32+ character key for session cookie encryption | Required | `32_character_random_hex_string` |
+| `SESSION_SECRET` | 32+ character key for session cookie encryption | Required | `antigravity_quota_watcher_production_super_secret_key_2026_xyz` |
 | `GOOGLE_CLOUD_PROJECT` | Optional GCP Project ID for quota requests | Optional | `my-gcp-project` |
 
 ---
