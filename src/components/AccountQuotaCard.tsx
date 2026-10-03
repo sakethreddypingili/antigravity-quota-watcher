@@ -55,12 +55,12 @@ const LimitRow: React.FC<LimitRowProps> = ({
   status,
 }) => {
   return (
-    <div className="flex items-center justify-between px-4 py-3 rounded-[13px] bg-[#17191A] hover:bg-[#1C1F20] border border-[#25292A] shadow-[0_1px_2px_rgba(0,0,0,0.25)] transition-all duration-150 group">
+    <div className="flex items-center justify-between px-3.5 py-2.5 rounded-[11px] bg-[#17191A] hover:bg-[#1C1F20] border border-[#25292A] shadow-[0_1px_2px_rgba(0,0,0,0.25)] transition-all duration-150 group">
       {/* Metric title + Subtitle context underneath */}
-      <div className="space-y-0.5 pr-3 flex-1 min-w-0">
-        <div className="text-[13px] font-[500] text-[#F1F0EC] tracking-tight">{title}</div>
+      <div className="space-y-0.5 pr-2.5 flex-1 min-w-0">
+        <div className="text-[12.5px] font-[500] text-[#F1F0EC] tracking-tight">{title}</div>
         {timerBadge && (
-          <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#A7A49D]">
+          <div className="flex items-center gap-1.5 text-[10.5px] font-mono text-[#A7A49D]">
             <Clock className={`w-3 h-3 ${hasStarted ? 'text-[#3B82F6]' : 'text-[#6F6C66]'}`} />
             <span>{hasStarted ? `Resets ${timerBadge}` : timerBadge}</span>
           </div>
@@ -68,11 +68,11 @@ const LimitRow: React.FC<LimitRowProps> = ({
       </div>
 
       {/* Numerical percentage + optically centered CircularProgress */}
-      <div className="flex items-center gap-3 shrink-0">
-        <span className="text-[16px] font-[650] font-mono text-[#F1F0EC] tracking-tight">
+      <div className="flex items-center gap-2.5 shrink-0">
+        <span className="text-[15px] font-[650] font-mono text-[#F1F0EC] tracking-tight">
           {percentage}%
         </span>
-        <CircularProgress percentage={percentage} size={30} strokeWidth={4} status={status} />
+        <CircularProgress percentage={percentage} size={28} strokeWidth={3.5} status={status} />
       </div>
     </div>
   );
@@ -203,27 +203,27 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
     >
       <div>
         {/* Account Hero Module Header */}
-        <div className="p-5 border-b border-[#25292A]/80 flex flex-col gap-3.5 bg-gradient-to-b from-[#121415]/70 to-[#0D0F10]/50 rounded-t-[20px]">
+        <div className="p-4 border-b border-[#25292A]/80 flex flex-col gap-3 bg-gradient-to-b from-[#121415]/70 to-[#0D0F10]/50 rounded-t-[18px]">
           {/* Top row: Avatar + Identity */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-[12px] bg-[#17191A] flex items-center justify-center overflow-hidden border border-[#25292A] shrink-0 shadow-sm">
+          <div className="flex items-start justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-9 h-9 rounded-[10px] bg-[#17191A] flex items-center justify-center overflow-hidden border border-[#25292A] shrink-0 shadow-sm">
                 {hasValidPicture ? (
                   <img src={account.picture} alt={account.name} className="w-full h-full object-cover" />
                 ) : (
-                  <User className="w-5 h-5 text-[#A7A49D]" />
+                  <User className="w-4 h-4 text-[#A7A49D]" />
                 )}
               </div>
               <div className="min-w-0">
-                <div className="text-[14px] font-[550] text-[#F1F0EC] tracking-tight truncate max-w-[190px]" title={account.name || account.email}>
+                <div className="text-[13.5px] font-[550] text-[#F1F0EC] tracking-tight truncate max-w-[170px]" title={account.name || account.email}>
                   {account.name || account.email.split('@')[0]}
                 </div>
-                <div className="text-[12px] font-[400] text-[#A7A49D] truncate max-w-[210px]">{account.email}</div>
+                <div className="text-[11.5px] font-[400] text-[#A7A49D] truncate max-w-[190px]">{account.email}</div>
               </div>
             </div>
 
             {/* Quick Actions */}
-            <div className="flex items-center gap-1 shrink-0 pt-0.5">
+            <div className="flex items-center gap-0.5 shrink-0 pt-0.5">
               <button
                 onClick={() => onRefreshAccount(account._id)}
                 disabled={isSyncing}
@@ -272,19 +272,19 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
 
 
         {/* Quota Sections (Both Weekly and 5-Hour Limit Pools) */}
-        <div className="p-4.5 space-y-4">
+        <div className="p-4 space-y-3.5">
           {displayGroups.map((group, gIdx) => {
             const isGemini = group.displayName.toLowerCase().includes('gemini');
             const Icon = isGemini ? Cpu : Box;
 
             return (
-              <div key={gIdx} className="space-y-2">
-                <div className="flex items-center gap-1.5 text-xs px-1">
+              <div key={gIdx} className="space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs px-0.5">
                   <Icon className="w-3.5 h-3.5 text-[#A7A49D]" />
-                  <span className="font-[500] text-[#A7A49D]">{group.displayName}</span>
+                  <span className="font-[500] text-[#A7A49D] text-[11.5px] tracking-tight">{group.displayName}</span>
                 </div>
 
-                <div className="rounded-[16px] border border-[#25292A] bg-[#121415] p-2 space-y-2">
+                <div className="space-y-1.5">
                   {(() => {
                     // Check if both weekly and 5h buckets exist in this group
                     const weeklyBucket = group.buckets.find(

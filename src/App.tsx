@@ -276,10 +276,10 @@ export default function App() {
           </div>
         ) : accounts.length > 0 ? (
           <div className="space-y-6">
-            {/* Deliberate 2-Column Composition: Focused, balanced width */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-[1280px]">
-              {/* Left Section: Google AI Pro (7 cols) */}
-              <div className="lg:col-span-7 space-y-4 min-w-0">
+            {/* 3-Part Layout: 2 parts for Google AI Pro, 1 part for Starter */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start w-full">
+              {/* Left Section: Google AI Pro (2/3 of screen) */}
+              <div className="lg:col-span-2 space-y-3.5 min-w-0">
                 <div className="flex items-center gap-2 px-1">
                   <span className="w-2 h-2 rounded-full bg-[#D6B98A]" />
                   <h3 className="text-[12px] font-[600] uppercase tracking-[0.09em] text-[#F1F0EC]/90">
@@ -288,7 +288,8 @@ export default function App() {
                 </div>
 
                 {proAccounts.length > 0 ? (
-                  <div className="grid grid-cols-1 gap-5">
+                  /* Fit 2 cards side-by-side under Google AI Pro */
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                     {proAccounts.map((acc) => (
                       <AccountQuotaCard
                         key={acc._id}
@@ -308,8 +309,8 @@ export default function App() {
                 )}
               </div>
 
-              {/* Right Section: Starter (5 cols) */}
-              <div className="lg:col-span-5 space-y-4 min-w-0">
+              {/* Right Section: Starter (1/3 of screen) */}
+              <div className="lg:col-span-1 space-y-3.5 min-w-0">
                 <div className="flex items-center gap-2 px-1">
                   <span className="w-2 h-2 rounded-full bg-[#6F6C66]" />
                   <h3 className="text-[12px] font-[600] uppercase tracking-[0.09em] text-[#A7A49D]">
@@ -318,7 +319,7 @@ export default function App() {
                 </div>
 
                 {standardAccounts.length > 0 ? (
-                  <div className="grid grid-cols-1 gap-5">
+                  <div className="grid grid-cols-1 gap-4">
                     {standardAccounts.map((acc) => (
                       <AccountQuotaCard
                         key={acc._id}
@@ -332,19 +333,19 @@ export default function App() {
                     ))}
                   </div>
                 ) : (
-                  <div className="p-8 rounded-[20px] border border-white/[0.065] bg-[#0D0F10] text-center flex flex-col items-center justify-center gap-3 shadow-[0_12px_32px_rgba(0,0,0,0.2)]">
-                    <div className="w-9 h-9 rounded-[10px] bg-[#121415] border border-white/[0.065] flex items-center justify-center text-[#A7A49D] text-xs shadow-sm">
+                  <div className="p-7 rounded-[18px] border border-white/[0.065] bg-[#0D0F10] text-center flex flex-col items-center justify-center gap-2.5 shadow-[0_12px_32px_rgba(0,0,0,0.2)]">
+                    <div className="w-8 h-8 rounded-[9px] bg-[#121415] border border-white/[0.065] flex items-center justify-center text-[#A7A49D] text-xs shadow-sm">
                       ◇
                     </div>
                     <div className="space-y-1">
-                      <div className="text-[14px] font-[550] text-[#F1F0EC]">Starter Accounts</div>
-                      <p className="text-[12px] text-[#A7A49D] max-w-[240px] leading-relaxed">
+                      <div className="text-[13.5px] font-[550] text-[#F1F0EC]">Starter Accounts</div>
+                      <p className="text-[11.5px] text-[#A7A49D] max-w-[220px] leading-relaxed">
                         No standard tier accounts linked to this workspace.
                       </p>
                     </div>
                     <button
                       onClick={() => handleConnectAccount('link')}
-                      className="mt-1 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-[9px] text-[12px] font-[500] text-[#F1F0EC] bg-[#17191A] hover:bg-[#1E2122] border border-white/[0.08] hover:border-white/[0.14] transition cursor-pointer"
+                      className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[11.5px] font-[500] text-[#F1F0EC] bg-[#17191A] hover:bg-[#1E2122] border border-white/[0.08] hover:border-white/[0.14] transition cursor-pointer"
                     >
                       <span>+ Add Starter Account</span>
                     </button>
