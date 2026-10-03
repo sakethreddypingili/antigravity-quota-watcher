@@ -711,4 +711,10 @@ import type { AuthSession, QuotaDataResponse, AccountSummary, AccountsListRespon
   app.post('/api/quota/refresh', quotaHandler);
 
   
+
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('[API Error]:', err);
+  res.status(500).json({ error: err?.message || 'Internal Server Error', stack: err?.stack });
+});
+
 export default app;
