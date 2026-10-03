@@ -31,19 +31,13 @@ interface LoginViewProps {
 export const LoginView: React.FC<LoginViewProps> = ({
   onLogin,
   onOpenGuide,
-  onRelayUrl,
   loading,
   hasConfig,
   missingVars,
   redirectUri,
-  clientId,
-  projectId,
   error,
 }) => {
   const [copied, setCopied] = useState(false);
-  const [showManualRelay, setShowManualRelay] = useState(false);
-  const [relayInput, setRelayInput] = useState('');
-  const [relayLoading, setRelayLoading] = useState(false);
 
   const handleCopyUri = () => {
     if (redirectUri) {
@@ -146,46 +140,10 @@ export const LoginView: React.FC<LoginViewProps> = ({
               <span>{loading ? 'Connecting to Google...' : 'Sign in with Google'}</span>
             </button>
 
-            {/* Remote/Mobile Callback Backtrack Helper */}
-            {onRelayUrl && (
-              <div className="pt-2 text-left">
-                <button
-                  type="button"
-                  onClick={() => setShowManualRelay(!showManualRelay)}
-                  className="text-xs text-zinc-400 hover:text-zinc-200 transition underline cursor-pointer"
-                >
-                  {showManualRelay ? 'Hide Mobile Auth Helper' : 'Authenticating on Mobile / Remote Device?'}
-                </button>
-
-                {showManualRelay && (
-                  <div className="mt-3 p-3.5 rounded-xl bg-zinc-950/70 border border-zinc-800 text-xs space-y-2.5">
-                    <p className="text-zinc-400 leading-relaxed">
-                      After Google approves, your browser is redirected to the whitelisted Antigravity callback. If this device doesn't run port 3001, paste that final URL or code below:
-                    </p>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={relayInput}
-                        onChange={(e) => setRelayInput(e.target.value)}
-                        placeholder="Paste redirected localhost:3001 URL or code"
-                        className="flex-1 bg-zinc-900 border border-zinc-700/80 rounded-lg px-2.5 py-1.5 text-zinc-200 placeholder-zinc-500 font-mono text-[11px] focus:outline-none focus:border-blue-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (!relayInput.trim()) return;
-                          setRelayLoading(true);
-                          await onRelayUrl(relayInput.trim());
-                          setRelayLoading(false);
-                        }}
-                        disabled={relayLoading || !relayInput.trim()}
-                        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-medium text-[11px] cursor-pointer"
-                      >
-                        {relayLoading ? '...' : 'Connect'}
-                      </button>
-                    </div>
-                  </div>
-                )}
+            {/* Background Autodetect Indicator if authenticating */}
+            {loading && (
+              <div className="pt-2 text-center text-xs text-zinc-400 animate-pulse">
+                Completing authentication behind the scenes...
               </div>
             )}
 

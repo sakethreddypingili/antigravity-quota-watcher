@@ -208,12 +208,28 @@ export default function App() {
       window.addEventListener('message', messageListener);
 
       const checkPopupInterval = window.setInterval(async () => {
+        // Step A: In-memory detection if popup reached callback before closing
+        try {
+          if (popup && !popup.closed && popup.location) {
+            const href = popup.location.href;
+            if (href && (href.includes('code=') || href.includes('localhost:3001') || href.includes('/api/auth/callback'))) {
+              window.clearInterval(checkPopupInterval);
+              window.removeEventListener('message', messageListener);
+              try { popup.close(); } catch {}
+              await handleRelayAuth(href);
+              return;
+            }
+          }
+        } catch {
+          // Cross-origin restriction before redirect to loopback is expected
+        }
+
         if (popup.closed) {
           window.clearInterval(checkPopupInterval);
           window.removeEventListener('message', messageListener);
           await finishLogin();
         }
-      }, 600);
+      }, 400);
     } catch (err) {
       setLoginLoading(false);
       const msg = err instanceof Error ? err.message : String(err);
@@ -249,6 +265,52 @@ export default function App() {
       setLoginLoading(false);
     }
   };
+
+  // Step B: Seamless Background Autodetect when mobile user resumes/switches back to tab
+  useEffect(() => {
+    let lastChecked = '';
+    const inspectForRedirectAuth = async () => {
+      // 1. Check if the current window URL itself contains ?code= (e.g. if redirected directly)
+      const currentUrl = window.location.href;
+      if (currentUrl.includes('code=') && !currentUrl.includes('/api/auth/callback')) {
+        const urlObj = new URL(currentUrl);
+        const code = urlObj.searchParams.get('code');
+        if (code && code !== lastChecked) {
+          lastChecked = code;
+          window.history.replaceState({}, document.title, window.location.pathname);
+          await handleRelayAuth(code);
+          return;
+        }
+      }
+
+      // 2. Check clipboard in background if user copied or browser captured the redirect URL
+      if (document.hasFocus() && navigator.clipboard && navigator.clipboard.readText) {
+        try {
+          const text = await navigator.clipboard.readText();
+          if (text && text !== lastChecked && (text.includes('code=') || text.includes('localhost:3001') || text.startsWith('4/0A'))) {
+            lastChecked = text;
+            await handleRelayAuth(text);
+          }
+        } catch {
+          // Clipboard access without explicit gesture may be restricted on some platforms
+        }
+      }
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        inspectForRedirectAuth();
+      }
+    };
+
+    window.addEventListener('focus', inspectForRedirectAuth);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', inspectForRedirectAuth);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, []);
 
 
   const handleLogout = async () => {

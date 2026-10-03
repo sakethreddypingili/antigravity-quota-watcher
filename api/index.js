@@ -1334,6 +1334,13 @@ app.post("/api/auth/relay-code", async (req, res) => {
       return res.status(400).json({ success: false, error: "Authorization code is required" });
     }
 
+    // Clean up code if user or browser passed full parameter
+    code = code.trim();
+    if (code.startsWith('code=')) {
+      code = code.slice(5);
+    }
+    code = decodeURIComponent(code);
+
     const redirectUri = getRedirectUri(req);
     const tokens = await exchangeCodeForTokens(code, redirectUri);
     const user = await fetchGoogleUserInfo(tokens.access_token);
