@@ -297,7 +297,7 @@ import type { AuthSession, QuotaDataResponse, AccountSummary, AccountsListRespon
 
     // Auto-sync local server account if detected and link with current user
     try {
-      const localServer = discoverLocalAntigravityServer();
+      const localServer = null;
       if (localServer) {
         const localStatus = await queryLocalUserStatus(localServer);
         if (localStatus.success && localStatus.user?.email) {
@@ -440,7 +440,7 @@ import type { AuthSession, QuotaDataResponse, AccountSummary, AccountsListRespon
         try {
           // If local Antigravity account without refresh token, fetch from local language server
           if (!acc.refreshToken) {
-            const localServer = discoverLocalAntigravityServer();
+            const localServer = null;
             if (localServer) {
               const localStatus = await queryLocalUserStatus(localServer);
               if (localStatus.success && localStatus.models.length > 0) {
@@ -608,7 +608,7 @@ import type { AuthSession, QuotaDataResponse, AccountSummary, AccountsListRespon
 
 
     // Fallback: Check local Antigravity Language Server if remote session is not available or returned no models
-    const localServer = discoverLocalAntigravityServer();
+    const localServer = null;
     if (localServer) {
       const quotaResult = await fetchAntigravityQuota();
       if (quotaResult.success && quotaResult.models.length > 0) {
