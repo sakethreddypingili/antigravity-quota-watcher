@@ -221,6 +221,35 @@ export default function App() {
     }
   };
 
+  // Relay auth callback URL / code directly into production server
+  const handleRelayAuth = async (input: string) => {
+    setLoginLoading(true);
+    setLoginError(null);
+    try {
+      const res = await fetch('/api/auth/relay-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: input }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to exchange authentication code');
+      }
+      await checkAuth();
+      await fetch('/api/accounts/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      await loadAccounts();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setLoginError(msg);
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
 
   const handleLogout = async () => {
     try {
@@ -358,6 +387,7 @@ export default function App() {
           <LoginView
             onLogin={() => handleConnectAccount('login')}
             onOpenGuide={() => setGuideOpen(true)}
+            onRelayUrl={handleRelayAuth}
             loading={loginLoading}
             hasConfig={authStatus.hasConfig}
             missingVars={authStatus.missingVars}

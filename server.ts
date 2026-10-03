@@ -238,6 +238,93 @@ export function createApiApp() {
   app.get('/api/auth/callback', oauthCallbackHandler);
   app.get('/auth/callback', oauthCallbackHandler);
 
+  // Relay code endpoint: exchange code or auth callback URL from remote/mobile devices seamlessly
+  app.post('/api/auth/relay-code', async (req, res) => {
+    try {
+      let { code, state, url } = req.body || {};
+      if (url && !code) {
+        try {
+          const parsed = new URL(url);
+          code = parsed.searchParams.get('code');
+          if (!state) state = parsed.searchParams.get('state');
+        } catch {
+          // If plain query string was passed
+          const match = url.match(/[?&]code=([^&]+)/);
+          if (match) code = decodeURIComponent(match[1]);
+          const stateMatch = url.match(/[?&]state=([^&]+)/);
+          if (stateMatch) state = decodeURIComponent(stateMatch[1]);
+        }
+      }
+
+      if (!code) {
+        return res.status(400).json({ success: false, error: 'Authorization code is required' });
+      }
+
+      const redirectUri = getRedirectUri(req);
+      const tokens = await exchangeCodeForTokens(code, redirectUri);
+      const user = await fetchGoogleUserInfo(tokens.access_token);
+
+      const session: AuthSession = {
+        user,
+        tokens: {
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token,
+          expiry_date: tokens.expiry_date,
+          token_type: tokens.token_type,
+          scope: tokens.scope,
+        },
+        createdAt: Date.now(),
+      };
+
+      let mode = 'login';
+      let linkWithEmail: string | undefined = undefined;
+      if (typeof state === 'string') {
+        try {
+          const parsedState = JSON.parse(Buffer.from(state, 'base64url').toString('utf8'));
+          mode = parsedState.mode || 'login';
+          linkWithEmail = parsedState.linkEmail;
+        } catch {}
+      }
+
+      setSessionCookie(res, session, req);
+
+      if (tokens.refresh_token) {
+        try {
+          const accountId = await fallbackStore.upsertAccount({
+            email: user.email,
+            name: user.name,
+            picture: user.picture,
+            refreshToken: tokens.refresh_token,
+            accessToken: tokens.access_token,
+            tokenExpiry: tokens.expiry_date,
+            linkWithEmail: mode === 'link' ? linkWithEmail : undefined,
+          });
+
+          fetchAntigravityQuota(tokens.access_token).then(async (qRes) => {
+            if (qRes.success && qRes.models.length > 0) {
+              await fallbackStore.saveQuota(accountId, user.email, qRes.models, qRes.tierInfo, qRes.groups);
+            }
+          }).catch(console.error);
+        } catch (storeErr) {
+          console.error('Failed to store account in Convex:', storeErr);
+        }
+      }
+
+      return res.json({
+        success: true,
+        user: {
+          email: user.email,
+          name: user.name,
+          picture: user.picture,
+        },
+      });
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error('Relay code exchange failed:', errorMsg);
+      return res.status(500).json({ success: false, error: errorMsg });
+    }
+  });
+
   // Get current user session status
   app.get('/api/auth/me', async (req, res) => {
     const config = getGoogleOAuthConfig(req);

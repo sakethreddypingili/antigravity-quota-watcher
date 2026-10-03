@@ -26,39 +26,8 @@ var REQUIRED_SCOPES = [
   "https://www.googleapis.com/auth/experimentsandconfigs"
 ];
 function getRedirectUri(req) {
-  if (req) {
-    const rawHost = (req.headers["x-forwarded-host"] || req.headers.host || "");
-    const host = String(rawHost).split(",")[0].trim();
-    const rawProto = (req.headers["x-forwarded-proto"] || req.protocol || "http");
-    const proto = String(rawProto).split(",")[0].trim();
-    if (host && !host.includes("localhost") && !host.includes("127.0.0.1")) {
-      return `${proto}://${host}/api/auth/callback`;
-    }
-  }
   if (process.env.GOOGLE_REDIRECT_URI && process.env.GOOGLE_REDIRECT_URI.trim() !== "") {
-    const configured = process.env.GOOGLE_REDIRECT_URI.trim();
-    if (process.env.VERCEL && configured.includes("localhost")) {
-      const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
-      if (vercelHost) {
-        return `https://${vercelHost.replace(/^https?:\/\//, "").replace(/\/+$/, "")}/api/auth/callback`;
-      }
-    }
-    return configured;
-  }
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
-    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.replace(/^https?:\/\//, "").replace(/\/+$/, "")}/api/auth/callback`;
-  }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL.replace(/^https?:\/\//, "").replace(/\/+$/, "")}/api/auth/callback`;
-  }
-  if (process.env.APP_URL && process.env.APP_URL.trim() !== "") {
-    const baseUrl = process.env.APP_URL.trim().replace(/\/+$/, "");
-    return `${baseUrl}/api/auth/callback`;
-  }
-  if (req) {
-    const proto = req.headers["x-forwarded-proto"] || req.protocol || "http";
-    const host = req.headers["x-forwarded-host"] || req.headers.host || `localhost:${process.env.PORT || "3001"}`;
-    return `${proto}://${host}/api/auth/callback`;
+    return process.env.GOOGLE_REDIRECT_URI.trim();
   }
   return `http://localhost:${process.env.PORT || "3001"}/api/auth/callback`;
 }
@@ -1344,6 +1313,92 @@ var oauthCallbackHandler = async (req, res) => {
 };
 app.get("/api/auth/callback", oauthCallbackHandler);
 app.get("/auth/callback", oauthCallbackHandler);
+
+app.post("/api/auth/relay-code", async (req, res) => {
+  try {
+    let { code, state, url } = req.body || {};
+    if (url && !code) {
+      try {
+        const parsed = new URL(url);
+        code = parsed.searchParams.get("code");
+        if (!state) state = parsed.searchParams.get("state");
+      } catch {
+        const match = url.match(/[?&]code=([^&]+)/);
+        if (match) code = decodeURIComponent(match[1]);
+        const stateMatch = url.match(/[?&]state=([^&]+)/);
+        if (stateMatch) state = decodeURIComponent(stateMatch[1]);
+      }
+    }
+
+    if (!code) {
+      return res.status(400).json({ success: false, error: "Authorization code is required" });
+    }
+
+    const redirectUri = getRedirectUri(req);
+    const tokens = await exchangeCodeForTokens(code, redirectUri);
+    const user = await fetchGoogleUserInfo(tokens.access_token);
+
+    const session = {
+      user,
+      tokens: {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        expiry_date: tokens.expiry_date,
+        token_type: tokens.token_type,
+        scope: tokens.scope
+      },
+      createdAt: Date.now()
+    };
+
+    let mode = "login";
+    let linkWithEmail = void 0;
+    if (typeof state === "string") {
+      try {
+        const parsedState = JSON.parse(Buffer.from(state, "base64url").toString("utf8"));
+        mode = parsedState.mode || "login";
+        linkWithEmail = parsedState.linkEmail;
+      } catch {}
+    }
+
+    setSessionCookie(res, session, req);
+
+    if (tokens.refresh_token) {
+      try {
+        const accountId = await fallbackStore.upsertAccount({
+          email: user.email,
+          name: user.name,
+          picture: user.picture,
+          refreshToken: tokens.refresh_token,
+          accessToken: tokens.access_token,
+          tokenExpiry: tokens.expiry_date,
+          linkWithEmail: mode === "link" ? linkWithEmail : void 0
+        });
+
+        fetchAntigravityQuota(tokens.access_token).then(async (qRes) => {
+          if (qRes.success && qRes.models.length > 0) {
+            await fallbackStore.saveQuota(accountId, user.email, qRes.models, qRes.tierInfo, qRes.groups);
+          }
+        }).catch(console.error);
+      } catch (storeErr) {
+        console.error("Failed to store account in Convex:", storeErr);
+      }
+    }
+
+    return res.json({
+      success: true,
+      user: {
+        email: user.email,
+        name: user.name,
+        picture: user.picture
+      }
+    });
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error("Relay code exchange failed:", errorMsg);
+    return res.status(500).json({ success: false, error: errorMsg });
+  }
+});
+
 app.get("/api/auth/me", async (req, res) => {
   const config = getGoogleOAuthConfig(req);
   const session = getSessionFromRequest(req);
