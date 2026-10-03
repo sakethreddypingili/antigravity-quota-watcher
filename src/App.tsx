@@ -266,7 +266,7 @@ export default function App() {
         accountsCount={accounts.length}
       />
 
-      <main className="max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-9 space-y-8">
+      <main className="max-w-[1680px] mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6 sm:space-y-8">
         {isInitialLoading && accounts.length === 0 ? (
           <div className="min-h-[calc(100vh-140px)] flex flex-col items-center justify-center gap-3">
             <div className="w-7 h-7 rounded-full border-2 border-sky-500 border-t-transparent animate-spin" />
@@ -275,9 +275,9 @@ export default function App() {
             </span>
           </div>
         ) : accounts.length > 0 ? (
-          <div className="space-y-6">
+          <div className="space-y-5 sm:space-y-6">
             {/* 3-Part Layout: 2 parts for Google AI Pro, 1 part for Starter */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 items-start w-full">
               {/* Left Section: Google AI Pro (2/3 of screen) */}
               <div className="lg:col-span-2 space-y-3 min-w-0">
                 <div className="flex items-center gap-2 px-1">

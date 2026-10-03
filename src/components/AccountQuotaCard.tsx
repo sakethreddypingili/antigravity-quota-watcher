@@ -205,22 +205,22 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
     >
       <div>
         {/* Account Hero Module Header */}
-        <div className="p-4 border-b border-white/[0.06] flex flex-col gap-3 bg-gradient-to-b from-white/[0.03] to-transparent rounded-t-[18px]">
+        <div className="p-3.5 sm:p-4 border-b border-white/[0.06] flex flex-col gap-2.5 sm:gap-3 bg-gradient-to-b from-white/[0.03] to-transparent rounded-t-[18px]">
           {/* Top row: Avatar + Identity */}
-          <div className="flex items-start justify-between gap-2.5">
+          <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-[10px] bg-[#16191E] flex items-center justify-center overflow-hidden border border-white/[0.08] shrink-0 shadow-[0_2px_6px_rgba(0,0,0,0.4)]">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-[9px] sm:rounded-[10px] bg-[#16191E] flex items-center justify-center overflow-hidden border border-white/[0.08] shrink-0 shadow-[0_2px_6px_rgba(0,0,0,0.4)]">
                 {hasValidPicture ? (
                   <img src={account.picture} alt={account.name} className="w-full h-full object-cover" />
                 ) : (
-                  <User className="w-4 h-4 text-[#9CA3AF]" />
+                  <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#9CA3AF]" />
                 )}
               </div>
               <div className="min-w-0">
-                <div className="text-[13.5px] font-[550] text-[#F5F5F7] tracking-tight truncate max-w-[170px]" title={account.name || account.email}>
+                <div className="text-[13px] sm:text-[13.5px] font-[550] text-[#F5F5F7] tracking-tight truncate max-w-[135px] xs:max-w-[180px] sm:max-w-[210px]" title={account.name || account.email}>
                   {account.name || account.email.split('@')[0]}
                 </div>
-                <div className="text-[11.5px] font-[400] text-[#9CA3AF] truncate max-w-[190px]">{account.email}</div>
+                <div className="text-[11px] sm:text-[11.5px] font-[400] text-[#9CA3AF] truncate max-w-[150px] xs:max-w-[200px] sm:max-w-[230px]">{account.email}</div>
               </div>
             </div>
 
@@ -274,7 +274,7 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
 
 
         {/* Quota Sections (Both Weekly and 5-Hour Limit Pools) */}
-        <div className="p-4 space-y-3.5">
+        <div className="p-3 sm:p-4 space-y-3 sm:space-y-3.5">
           {displayGroups.map((group, gIdx) => {
             const isGemini = group.displayName.toLowerCase().includes('gemini');
             const Icon = isGemini ? Cpu : Box;
