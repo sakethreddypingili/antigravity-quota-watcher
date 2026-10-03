@@ -279,10 +279,10 @@ export default function App() {
             {/* 3-Part Layout: 2 parts for Google AI Pro, 1 part for Starter */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start w-full">
               {/* Left Section: Google AI Pro (2/3 of screen) */}
-              <div className="lg:col-span-2 space-y-3.5 min-w-0">
+              <div className="lg:col-span-2 space-y-3 min-w-0">
                 <div className="flex items-center gap-2 px-1">
-                  <span className="w-2 h-2 rounded-full bg-[#D6B98A]" />
-                  <h3 className="text-[12px] font-[600] uppercase tracking-[0.09em] text-[#F1F0EC]/90">
+                  <span className="w-2 h-2 rounded-full bg-[#D6B98A] shadow-[0_0_8px_rgba(214,185,138,0.6)]" />
+                  <h3 className="text-[12px] font-[600] uppercase tracking-[0.09em] text-[#F5F5F7]/90">
                     Google AI Pro
                   </h3>
                 </div>
@@ -303,17 +303,17 @@ export default function App() {
                     ))}
                   </div>
                 ) : (
-                  <div className="p-8 rounded-[18px] border border-white/[0.065] bg-[#0D0F10] text-center text-xs text-[#6F6C66]">
+                  <div className="p-8 rounded-[18px] border border-white/[0.07] satin-card text-center text-xs text-[#6B7280]">
                     No Google AI Pro accounts connected.
                   </div>
                 )}
               </div>
 
               {/* Right Section: Starter (1/3 of screen) */}
-              <div className="lg:col-span-1 space-y-3.5 min-w-0">
+              <div className="lg:col-span-1 space-y-3 min-w-0">
                 <div className="flex items-center gap-2 px-1">
-                  <span className="w-2 h-2 rounded-full bg-[#6F6C66]" />
-                  <h3 className="text-[12px] font-[600] uppercase tracking-[0.09em] text-[#A7A49D]">
+                  <span className="w-2 h-2 rounded-full bg-[#6B7280]" />
+                  <h3 className="text-[12px] font-[600] uppercase tracking-[0.09em] text-[#9CA3AF]">
                     Starter
                   </h3>
                 </div>
@@ -333,19 +333,19 @@ export default function App() {
                     ))}
                   </div>
                 ) : (
-                  <div className="p-7 rounded-[18px] border border-white/[0.065] bg-[#0D0F10] text-center flex flex-col items-center justify-center gap-2.5 shadow-[0_12px_32px_rgba(0,0,0,0.2)]">
-                    <div className="w-8 h-8 rounded-[9px] bg-[#121415] border border-white/[0.065] flex items-center justify-center text-[#A7A49D] text-xs shadow-sm">
+                  <div className="p-7 rounded-[18px] border border-white/[0.07] satin-card text-center flex flex-col items-center justify-center gap-2.5 relative overflow-hidden group">
+                    <div className="w-8 h-8 rounded-[10px] bg-[#16191E] border border-white/[0.08] flex items-center justify-center text-[#9CA3AF] text-xs shadow-sm">
                       ◇
                     </div>
                     <div className="space-y-1">
-                      <div className="text-[13.5px] font-[550] text-[#F1F0EC]">Starter Accounts</div>
-                      <p className="text-[11.5px] text-[#A7A49D] max-w-[220px] leading-relaxed">
+                      <div className="text-[13.5px] font-[550] text-[#F5F5F7]">Starter Accounts</div>
+                      <p className="text-[11.5px] text-[#9CA3AF] max-w-[220px] leading-relaxed">
                         No standard tier accounts linked to this workspace.
                       </p>
                     </div>
                     <button
                       onClick={() => handleConnectAccount('link')}
-                      className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[11.5px] font-[500] text-[#F1F0EC] bg-[#17191A] hover:bg-[#1E2122] border border-white/[0.08] hover:border-white/[0.14] transition cursor-pointer"
+                      className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] text-[11.5px] font-[500] text-[#F5F5F7] bg-[#16191E] hover:bg-[#1E232B] border border-white/[0.08] hover:border-white/[0.16] shadow-[0_2px_8px_rgba(0,0,0,0.3)] active:scale-95 transition-all cursor-pointer"
                     >
                       <span>+ Add Starter Account</span>
                     </button>

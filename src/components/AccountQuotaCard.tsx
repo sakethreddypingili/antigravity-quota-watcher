@@ -55,13 +55,15 @@ const LimitRow: React.FC<LimitRowProps> = ({
   status,
 }) => {
   return (
-    <div className="flex items-center justify-between px-3.5 py-2.5 rounded-[11px] bg-[#17191A] hover:bg-[#1C1F20] border border-[#25292A] shadow-[0_1px_2px_rgba(0,0,0,0.25)] transition-all duration-150 group">
+    <div className="flex items-center justify-between px-3.5 py-2.5 rounded-[12px] satin-row border border-white/[0.06] hover:border-white/[0.12] transition-all duration-200 ease-out group cursor-default">
       {/* Metric title + Subtitle context underneath */}
       <div className="space-y-0.5 pr-2.5 flex-1 min-w-0">
-        <div className="text-[12.5px] font-[500] text-[#F1F0EC] tracking-tight">{title}</div>
+        <div className="text-[12.5px] font-[550] text-[#F5F5F7] tracking-tight group-hover:text-white transition-colors">
+          {title}
+        </div>
         {timerBadge && (
-          <div className="flex items-center gap-1.5 text-[10.5px] font-mono text-[#A7A49D]">
-            <Clock className={`w-3 h-3 ${hasStarted ? 'text-[#3B82F6]' : 'text-[#6F6C66]'}`} />
+          <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#9CA3AF]">
+            <Clock className={`w-3 h-3 ${hasStarted ? 'text-[#3B82F6]' : 'text-[#6B7280]'}`} />
             <span>{hasStarted ? `Resets ${timerBadge}` : timerBadge}</span>
           </div>
         )}
@@ -69,7 +71,7 @@ const LimitRow: React.FC<LimitRowProps> = ({
 
       {/* Numerical percentage + optically centered CircularProgress */}
       <div className="flex items-center gap-2.5 shrink-0">
-        <span className="text-[15px] font-[650] font-mono text-[#F1F0EC] tracking-tight">
+        <span className="text-[15px] font-[650] font-mono text-[#F5F5F7] tracking-tight group-hover:text-white transition-colors">
           {percentage}%
         </span>
         <CircularProgress percentage={percentage} size={28} strokeWidth={3.5} status={status} />
@@ -195,30 +197,30 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
 
   return (
     <div
-      className={`rounded-[20px] border transition-all duration-200 flex flex-col justify-between relative group ${
+      className={`rounded-[18px] border transition-all duration-300 ease-out flex flex-col justify-between relative group hover:-translate-y-0.5 ${
         account.isActive
-          ? 'bg-[#0D0F10] border-white/[0.08] shadow-[0_12px_32px_rgba(0,0,0,0.35),0_0_0_1px_rgba(59,130,246,0.18)]'
-          : 'bg-[#0D0F10] border-white/[0.065] hover:border-white/[0.12] shadow-[0_12px_32px_rgba(0,0,0,0.24),0_2px_8px_rgba(0,0,0,0.18)]'
+          ? 'satin-card-active border-blue-500/25'
+          : 'satin-card border-white/[0.07] hover:border-white/[0.14]'
       }`}
     >
       <div>
         {/* Account Hero Module Header */}
-        <div className="p-4 border-b border-[#25292A]/80 flex flex-col gap-3 bg-gradient-to-b from-[#121415]/70 to-[#0D0F10]/50 rounded-t-[18px]">
+        <div className="p-4 border-b border-white/[0.06] flex flex-col gap-3 bg-gradient-to-b from-white/[0.03] to-transparent rounded-t-[18px]">
           {/* Top row: Avatar + Identity */}
           <div className="flex items-start justify-between gap-2.5">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-[10px] bg-[#17191A] flex items-center justify-center overflow-hidden border border-[#25292A] shrink-0 shadow-sm">
+              <div className="w-9 h-9 rounded-[10px] bg-[#16191E] flex items-center justify-center overflow-hidden border border-white/[0.08] shrink-0 shadow-[0_2px_6px_rgba(0,0,0,0.4)]">
                 {hasValidPicture ? (
                   <img src={account.picture} alt={account.name} className="w-full h-full object-cover" />
                 ) : (
-                  <User className="w-4 h-4 text-[#A7A49D]" />
+                  <User className="w-4 h-4 text-[#9CA3AF]" />
                 )}
               </div>
               <div className="min-w-0">
-                <div className="text-[13.5px] font-[550] text-[#F1F0EC] tracking-tight truncate max-w-[170px]" title={account.name || account.email}>
+                <div className="text-[13.5px] font-[550] text-[#F5F5F7] tracking-tight truncate max-w-[170px]" title={account.name || account.email}>
                   {account.name || account.email.split('@')[0]}
                 </div>
-                <div className="text-[11.5px] font-[400] text-[#A7A49D] truncate max-w-[190px]">{account.email}</div>
+                <div className="text-[11.5px] font-[400] text-[#9CA3AF] truncate max-w-[190px]">{account.email}</div>
               </div>
             </div>
 
@@ -228,7 +230,7 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
                 onClick={() => onRefreshAccount(account._id)}
                 disabled={isSyncing}
                 title="Refresh Quota"
-                className="w-7 h-7 flex items-center justify-center rounded-[8px] text-[#6F6C66] hover:text-[#3B82F6] hover:bg-[#3B82F6]/10 transition disabled:opacity-50 cursor-pointer"
+                className="w-7 h-7 flex items-center justify-center rounded-[8px] text-[#6B7280] hover:text-[#3B82F6] hover:bg-[#3B82F6]/10 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-[#3B82F6]' : ''}`} />
               </button>
@@ -241,7 +243,7 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
                     }
                   }}
                   title="Unlink from this group"
-                  className="w-7 h-7 flex items-center justify-center rounded-[8px] text-[#6F6C66] hover:text-[#D6A85A] hover:bg-[#D6A85A]/10 transition cursor-pointer"
+                  className="w-7 h-7 flex items-center justify-center rounded-[8px] text-[#6B7280] hover:text-[#F59E0B] hover:bg-[#F59E0B]/10 active:scale-95 transition-all cursor-pointer"
                 >
                   <Unlink2 className="w-3.5 h-3.5" />
                 </button>
@@ -254,7 +256,7 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
                   }
                 }}
                 title="Delete Account"
-                className="w-7 h-7 flex items-center justify-center rounded-[8px] text-[#6F6C66] hover:text-[#D86666] hover:bg-[#D86666]/10 transition cursor-pointer"
+                className="w-7 h-7 flex items-center justify-center rounded-[8px] text-[#6B7280] hover:text-[#EF4444] hover:bg-[#EF4444]/10 active:scale-95 transition-all cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -263,8 +265,8 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
 
           {/* Bottom row: Material Tier Tag */}
           <div className="flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[7px] text-[11px] font-[500] font-mono bg-[#17191A] text-[#D6B98A] border border-[#D6B98A]/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#D6B98A]" />
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[6px] text-[10.5px] font-[550] font-mono bg-gradient-to-r from-[#D6B98A]/10 to-transparent text-[#D6B98A] border border-[#D6B98A]/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#D6B98A] shadow-[0_0_6px_rgba(214,185,138,0.5)]" />
               {tierName}
             </span>
           </div>
