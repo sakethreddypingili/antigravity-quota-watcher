@@ -1139,15 +1139,14 @@ var dbService = new ConvexDatabaseService();
 var fallbackStore = dbService;
 
 // server.ts
-async function startServer() {
-  const app = express();
-  const PORT = Number(process.env.PORT) || 3001;
-  app.use(express.json());
-  app.use(cookieParser());
-  app.get("/api/health", (_req, res) => {
+function createApiApp() {
+  const app2 = express();
+  app2.use(express.json());
+  app2.use(cookieParser());
+  app2.get("/api/health", (_req, res) => {
     res.json({ status: "ok", timestamp: (/* @__PURE__ */ new Date()).toISOString() });
   });
-  app.get("/api/auth/config", (req, res) => {
+  app2.get("/api/auth/config", (req, res) => {
     const config = getGoogleOAuthConfig(req);
     res.json({
       hasConfig: config.isConfigured,
@@ -1163,7 +1162,7 @@ async function startServer() {
       ]
     });
   });
-  app.get("/api/auth/url", (req, res) => {
+  app2.get("/api/auth/url", (req, res) => {
     try {
       const config = getGoogleOAuthConfig(req);
       if (!config.isConfigured) {
@@ -1323,9 +1322,9 @@ async function startServer() {
       `);
     }
   };
-  app.get("/api/auth/callback", oauthCallbackHandler);
-  app.get("/auth/callback", oauthCallbackHandler);
-  app.get("/api/auth/me", async (req, res) => {
+  app2.get("/api/auth/callback", oauthCallbackHandler);
+  app2.get("/auth/callback", oauthCallbackHandler);
+  app2.get("/api/auth/me", async (req, res) => {
     const config = getGoogleOAuthConfig(req);
     const session = getSessionFromRequest(req);
     if (session) {
@@ -1356,11 +1355,11 @@ async function startServer() {
       localServerDetected: false
     });
   });
-  app.post("/api/auth/logout", (_req, res) => {
+  app2.post("/api/auth/logout", (_req, res) => {
     clearSessionCookie(res);
     res.json({ success: true, message: "Signed out successfully" });
   });
-  app.get("/api/accounts", async (req, res) => {
+  app2.get("/api/accounts", async (req, res) => {
     const session = getSessionFromRequest(req);
     if (!session) {
       return res.json({
@@ -1435,7 +1434,7 @@ async function startServer() {
     };
     res.json(response);
   });
-  app.post("/api/accounts/switch", async (req, res) => {
+  app2.post("/api/accounts/switch", async (req, res) => {
     const { accountId } = req.body;
     if (!accountId) {
       return res.status(400).json({ error: "accountId is required" });
@@ -1465,12 +1464,12 @@ async function startServer() {
     }
     res.json({ success: true, activeAccountId: accountId });
   });
-  app.delete("/api/accounts/:id", async (req, res) => {
+  app2.delete("/api/accounts/:id", async (req, res) => {
     const { id } = req.params;
     const success = await fallbackStore.deleteAccount(id);
     res.json({ success });
   });
-  app.post("/api/accounts/unlink", async (req, res) => {
+  app2.post("/api/accounts/unlink", async (req, res) => {
     const { email } = req.body;
     if (!email) {
       return res.status(400).json({ error: "email is required" });
@@ -1478,7 +1477,7 @@ async function startServer() {
     const success = await fallbackStore.unlinkAccount(email);
     res.json({ success });
   });
-  app.post("/api/workspaces/merge", async (req, res) => {
+  app2.post("/api/workspaces/merge", async (req, res) => {
     const { sourceEmail, targetEmail } = req.body;
     if (!sourceEmail || !targetEmail) {
       return res.status(400).json({ error: "sourceEmail and targetEmail are required" });
@@ -1486,7 +1485,7 @@ async function startServer() {
     const success = await fallbackStore.mergeWorkspaces(sourceEmail, targetEmail);
     res.json({ success });
   });
-  app.post("/api/accounts/sync", async (req, res) => {
+  app2.post("/api/accounts/sync", async (req, res) => {
     const session = getSessionFromRequest(req);
     const userEmail = session?.user?.email;
     const { accountId } = req.body;
@@ -1714,39 +1713,58 @@ async function startServer() {
     }
     res.json(responsePayload);
   };
-  app.get("/api/quota", quotaHandler);
-  app.post("/api/quota/refresh", quotaHandler);
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: {
-        middlewareMode: true,
-        watch: {
-          ignored: [
-            "**/.accounts_store.json",
-            "**/.accounts_store.json*",
-            "**/lib/**",
-            "**/dist/**",
-            "**/.git/**",
-            "**/.gemini/**",
-            "**/*.log"
-          ]
-        }
-      },
-      appType: "spa"
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (_req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+  app2.get("/api/quota", quotaHandler);
+  app2.post("/api/quota/refresh", quotaHandler);
+  app2.use((err, _req, res, _next) => {
+    console.error("[API Error]:", err);
+    res.status(500).json({ error: err?.message || "Internal Server Error", stack: err?.stack });
+  });
+  return app2;
+}
+var app = createApiApp();
+var isDirectRun = Boolean(
+  process.argv[1] && (process.argv[1].endsWith("server.ts") || process.argv[1].endsWith("server.cjs")) && !process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME
+);
+if (isDirectRun) {
+  const PORT = Number(process.env.PORT) || 3001;
+  async function startServer() {
+    if (process.env.NODE_ENV !== "production") {
+      const vite = await createViteServer({
+        server: {
+          middlewareMode: true,
+          watch: {
+            ignored: [
+              "**/.accounts_store.json",
+              "**/.accounts_store.json*",
+              "**/lib/**",
+              "**/dist/**",
+              "**/.git/**",
+              "**/.gemini/**",
+              "**/*.log"
+            ]
+          }
+        },
+        appType: "spa"
+      });
+      app.use(vite.middlewares);
+    } else {
+      const distPath = path.join(process.cwd(), "dist");
+      app.use(express.static(distPath));
+      app.get("*", (_req, res) => {
+        res.sendFile(path.join(distPath, "index.html"));
+      });
+    }
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Antigravity Quota Watcher server running on port ${PORT}`);
     });
   }
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Antigravity Quota Watcher server running on port ${PORT}`);
+  startServer().catch((err) => {
+    console.error("Server failed to start:", err);
+    process.exit(1);
   });
 }
-startServer().catch((err) => {
-  console.error("Server failed to start:", err);
-  process.exit(1);
-});
+var server_default = app;
+export {
+  createApiApp,
+  server_default as default
+};

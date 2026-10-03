@@ -22,9 +22,8 @@ import { discoverLocalAntigravityServer, queryLocalUserStatus } from './lib/anti
 import { fallbackStore, getConvexClient, type StoredAccount } from './lib/db/convex';
 import type { AuthSession, QuotaDataResponse, AccountSummary, AccountsListResponse } from './src/types';
 
-async function startServer() {
+export function createApiApp() {
   const app = express();
-  const PORT = Number(process.env.PORT) || 3001;
 
   app.use(express.json());
   app.use(cookieParser());
@@ -711,40 +710,65 @@ async function startServer() {
   app.get('/api/quota', quotaHandler);
   app.post('/api/quota/refresh', quotaHandler);
 
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: {
-        middlewareMode: true,
-        watch: {
-          ignored: [
-            '**/.accounts_store.json',
-            '**/.accounts_store.json*',
-            '**/lib/**',
-            '**/dist/**',
-            '**/.git/**',
-            '**/.gemini/**',
-            '**/*.log',
-          ],
+  // Global error handler
+  app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error('[API Error]:', err);
+    res.status(500).json({ error: err?.message || 'Internal Server Error', stack: err?.stack });
+  });
+
+  return app;
+}
+
+const app = createApiApp();
+
+// If executed directly (CLI/dev mode) and not imported in a serverless environment
+const isDirectRun = Boolean(
+  process.argv[1] &&
+  (process.argv[1].endsWith('server.ts') || process.argv[1].endsWith('server.cjs')) &&
+  !process.env.VERCEL &&
+  !process.env.AWS_LAMBDA_FUNCTION_NAME
+);
+
+if (isDirectRun) {
+  const PORT = Number(process.env.PORT) || 3001;
+
+  async function startServer() {
+    if (process.env.NODE_ENV !== 'production') {
+      const vite = await createViteServer({
+        server: {
+          middlewareMode: true,
+          watch: {
+            ignored: [
+              '**/.accounts_store.json',
+              '**/.accounts_store.json*',
+              '**/lib/**',
+              '**/dist/**',
+              '**/.git/**',
+              '**/.gemini/**',
+              '**/*.log',
+            ],
+          },
         },
-      },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } else {
+      const distPath = path.join(process.cwd(), 'dist');
+      app.use(express.static(distPath));
+      app.get('*', (_req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    }
+
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Antigravity Quota Watcher server running on port ${PORT}`);
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Antigravity Quota Watcher server running on port ${PORT}`);
+  startServer().catch((err) => {
+    console.error('Server failed to start:', err);
+    process.exit(1);
   });
 }
 
-startServer().catch((err) => {
-  console.error('Server failed to start:', err);
-  process.exit(1);
-});
+export default app;
