@@ -149,6 +149,57 @@ export default function App() {
     };
   }, [checkAuth, loadAccounts]);
 
+  // Username & Password Authentication
+  const handleUsernameLogin = async (username: string, password: string) => {
+    setLoginLoading(true);
+    setLoginError(null);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to sign in.');
+      }
+      await checkAuth();
+      await loadAccounts();
+      return { success: true };
+    } catch (err: any) {
+      const msg = err.message || 'Failed to sign in.';
+      setLoginError(msg);
+      return { success: false, error: msg };
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleUsernameRegister = async (username: string, password: string) => {
+    setLoginLoading(true);
+    setLoginError(null);
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to register account.');
+      }
+      await checkAuth();
+      await loadAccounts();
+      return { success: true };
+    } catch (err: any) {
+      const msg = err.message || 'Failed to register account.';
+      setLoginError(msg);
+      return { success: false, error: msg };
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
   // Google OAuth login to connect or link an account
   const handleConnectAccount = async (mode: 'login' | 'link' = authStatus.authenticated ? 'link' : 'login') => {
     setLoginLoading(true);
@@ -447,15 +498,10 @@ export default function App() {
           </div>
         ) : (
           <LoginView
-            onLogin={() => handleConnectAccount('login')}
+            onLogin={handleUsernameLogin}
+            onRegister={handleUsernameRegister}
             onOpenGuide={() => setGuideOpen(true)}
-            onRelayUrl={handleRelayAuth}
             loading={loginLoading}
-            hasConfig={authStatus.hasConfig}
-            missingVars={authStatus.missingVars}
-            redirectUri={authStatus.redirectUri}
-            clientId={authStatus.clientId}
-            projectId={authStatus.projectId}
             error={loginError}
           />
         )}

@@ -12,13 +12,14 @@ export interface GoogleUser {
 
 export interface AuthSession {
   user: GoogleUser;
-  tokens: {
-    access_token: string;
+  tokens?: {
+    access_token?: string;
     refresh_token?: string;
     expiry_date?: number;
     token_type?: string;
     scope?: string;
   };
+  workspaceId?: string;
   createdAt: number;
 }
 
@@ -29,6 +30,7 @@ export interface AuthStatusResponse {
     name: string;
     picture?: string;
   };
+  workspaceId?: string;
   expiresAt?: number;
   hasConfig: boolean;
   missingVars?: string[];

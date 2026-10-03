@@ -2,6 +2,7 @@
 import "dotenv/config";
 import express from "express";
 import cookieParser from "cookie-parser";
+import crypto from "crypto";
 
 // lib/auth/google.ts
 var GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -1049,25 +1050,39 @@ var ConvexDatabaseService = class {
     }
     return this.client;
   }
-  async listAccounts(userEmail) {
+  async listAccounts(userEmail, workspaceId) {
     try {
       const client = this.getClient();
-      const accounts = await client.query(api.accounts.listAccounts, { userEmail });
+      const accounts = await client.query(api.accounts.listAccounts, { userEmail, workspaceId });
       return accounts;
     } catch (err) {
       console.error("[Convex DB] Error listing accounts:", err);
       return [];
     }
   }
-  async getActiveAccount(userEmail) {
+  async getActiveAccount(userEmail, workspaceId) {
     try {
       const client = this.getClient();
-      const account = await client.query(api.accounts.getActiveAccount, { userEmail });
+      const account = await client.query(api.accounts.getActiveAccount, { userEmail, workspaceId });
       return account || null;
     } catch (err) {
       console.error("[Convex DB] Error getting active account:", err);
       return null;
     }
+  }
+  async getUserByUsername(username) {
+    try {
+      const client = this.getClient();
+      const user = await client.query(api.users.getUserByUsername, { username });
+      return user || null;
+    } catch (err) {
+      console.error("[Convex DB] Error getting user by username:", err);
+      return null;
+    }
+  }
+  async registerUser(username, passwordHash, salt) {
+    const client = this.getClient();
+    return await client.mutation(api.users.registerUser, { username, passwordHash, salt });
   }
   async upsertAccount(args) {
     const client = this.getClient();
@@ -1406,6 +1421,102 @@ app.post("/api/auth/relay-code", async (req, res) => {
   }
 });
 
+  // Register with Username & Password
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { username, password } = req.body || {};
+      if (!username || typeof username !== "string" || username.trim().length < 3) {
+        return res.status(400).json({ success: false, error: "Username must be at least 3 characters long." });
+      }
+      if (!password || typeof password !== "string" || password.length < 6) {
+        return res.status(400).json({ success: false, error: "Password must be at least 6 characters long." });
+      }
+
+      const cleanUsername = username.trim().toLowerCase();
+      const existingUser = await fallbackStore.getUserByUsername(cleanUsername);
+      if (existingUser) {
+        return res.status(409).json({ success: false, error: "Username is already taken." });
+      }
+
+      const salt = crypto.randomBytes(16).toString("hex");
+      const passwordHash = crypto.scryptSync(password, salt, 64).toString("hex");
+
+      const registration = await fallbackStore.registerUser(cleanUsername, passwordHash, salt);
+      if (!registration) {
+        return res.status(500).json({ success: false, error: "Failed to create user account." });
+      }
+
+      const session = {
+        user: {
+          id: String(registration.userId),
+          email: `${cleanUsername}@local`,
+          name: cleanUsername,
+        },
+        workspaceId: String(registration.workspaceId),
+        createdAt: Date.now(),
+      };
+
+      setSessionCookie(res, session, req);
+
+      return res.json({
+        success: true,
+        user: {
+          username: cleanUsername,
+          name: cleanUsername,
+          workspaceId: session.workspaceId,
+        },
+      });
+    } catch (err) {
+      console.error("Registration error:", err);
+      return res.status(500).json({ success: false, error: err?.message || "Internal server error" });
+    }
+  });
+
+  // Login with Username & Password
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { username, password } = req.body || {};
+      if (!username || !password) {
+        return res.status(400).json({ success: false, error: "Username and password are required." });
+      }
+
+      const cleanUsername = String(username).trim().toLowerCase();
+      const user = await fallbackStore.getUserByUsername(cleanUsername);
+      if (!user) {
+        return res.status(401).json({ success: false, error: "Invalid username or password." });
+      }
+
+      const testHash = crypto.scryptSync(password, user.salt, 64).toString("hex");
+      if (testHash !== user.passwordHash) {
+        return res.status(401).json({ success: false, error: "Invalid username or password." });
+      }
+
+      const session = {
+        user: {
+          id: String(user._id),
+          email: `${cleanUsername}@local`,
+          name: user.username,
+        },
+        workspaceId: String(user.workspaceId),
+        createdAt: Date.now(),
+      };
+
+      setSessionCookie(res, session, req);
+
+      return res.json({
+        success: true,
+        user: {
+          username: cleanUsername,
+          name: cleanUsername,
+          workspaceId: session.workspaceId,
+        },
+      });
+    } catch (err) {
+      console.error("Login error:", err);
+      return res.status(500).json({ success: false, error: err?.message || "Internal server error" });
+    }
+  });
+
 app.get("/api/auth/me", async (req, res) => {
   const config = getGoogleOAuthConfig(req);
   const session = getSessionFromRequest(req);
@@ -1417,7 +1528,8 @@ app.get("/api/auth/me", async (req, res) => {
         name: session.user.name,
         picture: session.user.picture
       },
-      expiresAt: session.tokens.expiry_date,
+      workspaceId: session.workspaceId,
+      expiresAt: session.tokens?.expiry_date,
       hasConfig: config.isConfigured,
       clientId: config.clientId,
       projectId: config.projectId,
@@ -1451,43 +1563,8 @@ app.get("/api/accounts", async (req, res) => {
     });
   }
   const userEmail = session.user?.email;
-  try {
-    const localServer = null;
-    if (localServer) {
-      const localStatus = await queryLocalUserStatus(localServer);
-      if (localStatus.success && localStatus.user?.email) {
-        const email = localStatus.user.email;
-        const name = localStatus.user.name || "Antigravity User";
-        const tier = localStatus.user.tierName || "Google AI Pro";
-        const existingList = await fallbackStore.listAccounts(userEmail);
-        const existing = existingList.find((a) => a.email === email);
-        const accId = await fallbackStore.upsertAccount({
-          email,
-          name,
-          refreshToken: existing?.refreshToken || "",
-          tier,
-          plan: "Pro",
-          linkWithEmail: userEmail
-        });
-        if (localStatus.models && localStatus.models.length > 0) {
-          await fallbackStore.saveQuota(
-            accId,
-            email,
-            localStatus.models,
-            {
-              currentTier: tier,
-              plan: "Pro"
-            },
-            localStatus.groups
-          );
-        }
-      }
-    }
-  } catch (e) {
-    console.warn("Could not auto-sync local server account:", e);
-  }
-  const list = await fallbackStore.listAccounts(userEmail);
-  const activeAcc = await fallbackStore.getActiveAccount(userEmail);
+  const list = await fallbackStore.listAccounts(userEmail, session.workspaceId);
+  const activeAcc = await fallbackStore.getActiveAccount(userEmail, session.workspaceId);
   const accounts = list.map((a) => {
     const quotaModels = a.quota?.models || [];
     const healthyCount = quotaModels.filter((m) => m.status === "healthy").length;

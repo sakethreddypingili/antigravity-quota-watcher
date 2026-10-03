@@ -20,10 +20,16 @@ async function ensureAccountWorkspace(ctx: any, account: any) {
 export const listAccounts = query({
   args: {
     userEmail: v.optional(v.string()),
+    workspaceId: v.optional(v.id('workspaces')),
   },
   handler: async (ctx, args) => {
     let accounts: any[] = [];
-    if (args.userEmail) {
+    if (args.workspaceId) {
+      accounts = await ctx.db
+        .query('accounts')
+        .withIndex('by_workspace', (q) => q.eq('workspaceId', args.workspaceId!))
+        .collect();
+    } else if (args.userEmail) {
       // Find the user's account
       const userAcc = await ctx.db
         .query('accounts')
@@ -62,17 +68,25 @@ export const listAccounts = query({
 export const getActiveAccount = query({
   args: {
     userEmail: v.optional(v.string()),
+    workspaceId: v.optional(v.id('workspaces')),
   },
   handler: async (ctx, args) => {
     let candidate = null;
-    if (args.userEmail) {
+    if (args.workspaceId) {
+      const inWs = await ctx.db
+        .query('accounts')
+        .withIndex('by_workspace', (q) => q.eq('workspaceId', args.workspaceId!))
+        .collect();
+      candidate = inWs.find((a) => a.isActive) || inWs[0] || null;
+      if (!candidate) return null;
+    } else if (args.userEmail) {
       candidate = await ctx.db
         .query('accounts')
         .withIndex('by_email', (q) => q.eq('email', args.userEmail!))
         .first();
     }
 
-    if (!candidate) {
+    if (!candidate && !args.workspaceId) {
       candidate = await ctx.db
         .query('accounts')
         .withIndex('by_active', (q) => q.eq('isActive', true))
@@ -105,12 +119,13 @@ export const upsertAccount = mutation({
     tier: v.optional(v.string()),
     plan: v.optional(v.string()),
     linkWithEmail: v.optional(v.string()), // Target account whose workspace to join (only if explicitly linking!)
+    linkWithWorkspaceId: v.optional(v.id('workspaces')), // Dashboard user's workspace to attach into
   },
   handler: async (ctx, args) => {
-    let targetWorkspaceId: any = undefined;
+    let targetWorkspaceId: any = args.linkWithWorkspaceId;
 
     // If explicit linking requested, find target user's workspace
-    if (args.linkWithEmail) {
+    if (!targetWorkspaceId && args.linkWithEmail) {
       const targetUser = await ctx.db
         .query('accounts')
         .withIndex('by_email', (q) => q.eq('email', args.linkWithEmail!))

@@ -102,6 +102,11 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Desktop-only secondary icons */}
             <div className="hidden sm:flex items-center gap-2">
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-[8px] bg-white/[0.04] border border-white/[0.06] text-xs text-[#9CA3AF]">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span className="font-medium text-[#F5F5F7] max-w-[120px] truncate">{user.name || user.email}</span>
+              </div>
+
               <button
                 id="btn-diagnostics"
                 onClick={onOpenDiagnostics}

@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import path from 'path';
+import crypto from 'crypto';
 import { createServer as createViteServer } from 'vite';
 import {
   generateAuthUrl,
@@ -331,6 +332,102 @@ export function createApiApp() {
     }
   });
 
+  // Register with Username & Password
+  app.post('/api/auth/register', async (req, res) => {
+    try {
+      const { username, password } = req.body || {};
+      if (!username || typeof username !== 'string' || username.trim().length < 3) {
+        return res.status(400).json({ success: false, error: 'Username must be at least 3 characters long.' });
+      }
+      if (!password || typeof password !== 'string' || password.length < 6) {
+        return res.status(400).json({ success: false, error: 'Password must be at least 6 characters long.' });
+      }
+
+      const cleanUsername = username.trim().toLowerCase();
+      const existingUser = await fallbackStore.getUserByUsername(cleanUsername);
+      if (existingUser) {
+        return res.status(409).json({ success: false, error: 'Username is already taken.' });
+      }
+
+      const salt = crypto.randomBytes(16).toString('hex');
+      const passwordHash = crypto.scryptSync(password, salt, 64).toString('hex');
+
+      const registration = await fallbackStore.registerUser(cleanUsername, passwordHash, salt);
+      if (!registration) {
+        return res.status(500).json({ success: false, error: 'Failed to create user account.' });
+      }
+
+      const session: AuthSession = {
+        user: {
+          id: String(registration.userId),
+          email: `${cleanUsername}@local`,
+          name: cleanUsername,
+        },
+        workspaceId: String(registration.workspaceId),
+        createdAt: Date.now(),
+      };
+
+      setSessionCookie(res, session, req);
+
+      return res.json({
+        success: true,
+        user: {
+          username: cleanUsername,
+          name: cleanUsername,
+          workspaceId: session.workspaceId,
+        },
+      });
+    } catch (err: any) {
+      console.error('Registration error:', err);
+      return res.status(500).json({ success: false, error: err.message || 'Internal server error' });
+    }
+  });
+
+  // Login with Username & Password
+  app.post('/api/auth/login', async (req, res) => {
+    try {
+      const { username, password } = req.body || {};
+      if (!username || !password) {
+        return res.status(400).json({ success: false, error: 'Username and password are required.' });
+      }
+
+      const cleanUsername = String(username).trim().toLowerCase();
+      const user = await fallbackStore.getUserByUsername(cleanUsername);
+      if (!user) {
+        return res.status(401).json({ success: false, error: 'Invalid username or password.' });
+      }
+
+      const testHash = crypto.scryptSync(password, user.salt, 64).toString('hex');
+      if (testHash !== user.passwordHash) {
+        return res.status(401).json({ success: false, error: 'Invalid username or password.' });
+      }
+
+      const session: AuthSession = {
+        user: {
+          id: String(user._id),
+          email: `${cleanUsername}@local`,
+          name: user.username,
+        },
+        workspaceId: String(user.workspaceId),
+        createdAt: Date.now(),
+      };
+
+      setSessionCookie(res, session, req);
+
+      return res.json({
+        success: true,
+        user: {
+          username: cleanUsername,
+          name: cleanUsername,
+          workspaceId: session.workspaceId,
+        },
+      });
+    } catch (err: any) {
+      console.error('Login error:', err);
+      return res.status(500).json({ success: false, error: err.message || 'Internal server error' });
+    }
+  });
+
   // Get current user session status
   app.get('/api/auth/me', async (req, res) => {
     const config = getGoogleOAuthConfig(req);
@@ -344,7 +441,8 @@ export function createApiApp() {
           name: session.user.name,
           picture: session.user.picture,
         },
-        expiresAt: session.tokens.expiry_date,
+        workspaceId: session.workspaceId,
+        expiresAt: session.tokens?.expiry_date,
         hasConfig: config.isConfigured,
         clientId: config.clientId,
         projectId: config.projectId,
@@ -427,9 +525,9 @@ export function createApiApp() {
       console.warn('Could not auto-sync local server account:', e);
     }
 
-    // Retrieve accounts linked in this user's cluster graph
-    const list = await fallbackStore.listAccounts(userEmail);
-    const activeAcc = await fallbackStore.getActiveAccount(userEmail);
+    // Retrieve accounts linked in this user's cluster graph or workspace
+    const list = await fallbackStore.listAccounts(userEmail, session.workspaceId);
+    const activeAcc = await fallbackStore.getActiveAccount(userEmail, session.workspaceId);
     const accounts: AccountSummary[] = list.map((a) => {
       const quotaModels = a.quota?.models || [];
       const healthyCount = quotaModels.filter((m: any) => m.status === 'healthy').length;

@@ -43,10 +43,10 @@ class ConvexDatabaseService {
     return this.client;
   }
 
-  async listAccounts(userEmail?: string): Promise<StoredAccount[]> {
+  async listAccounts(userEmail?: string, workspaceId?: any): Promise<StoredAccount[]> {
     try {
       const client = this.getClient();
-      const accounts = await client.query(api.accounts.listAccounts, { userEmail });
+      const accounts = await client.query(api.accounts.listAccounts, { userEmail, workspaceId });
       return accounts as StoredAccount[];
     } catch (err) {
       console.error('[Convex DB] Error listing accounts:', err);
@@ -54,15 +54,31 @@ class ConvexDatabaseService {
     }
   }
 
-  async getActiveAccount(userEmail?: string): Promise<StoredAccount | null> {
+  async getActiveAccount(userEmail?: string, workspaceId?: any): Promise<StoredAccount | null> {
     try {
       const client = this.getClient();
-      const account = await client.query(api.accounts.getActiveAccount, { userEmail });
+      const account = await client.query(api.accounts.getActiveAccount, { userEmail, workspaceId });
       return (account as StoredAccount) || null;
     } catch (err) {
       console.error('[Convex DB] Error getting active account:', err);
       return null;
     }
+  }
+
+  async getUserByUsername(username: string): Promise<any | null> {
+    try {
+      const client = this.getClient();
+      const user = await client.query(api.users.getUserByUsername, { username });
+      return user || null;
+    } catch (err) {
+      console.error('[Convex DB] Error getting user by username:', err);
+      return null;
+    }
+  }
+
+  async registerUser(username: string, passwordHash: string, salt: string): Promise<{ userId: any; workspaceId: any } | null> {
+    const client = this.getClient();
+    return await client.mutation(api.users.registerUser, { username, passwordHash, salt });
   }
 
   async upsertAccount(args: {
@@ -75,6 +91,7 @@ class ConvexDatabaseService {
     tier?: string;
     plan?: string;
     linkWithEmail?: string;
+    linkWithWorkspaceId?: any;
   }): Promise<string> {
     const client = this.getClient();
     const id = await client.mutation(api.accounts.upsertAccount, args);
