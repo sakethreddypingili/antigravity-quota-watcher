@@ -1,120 +1,144 @@
-# Google Antigravity Quota Watcher
+# Antigravity Quota Watcher
 
-A production-ready web application designed to monitor your Google Antigravity and Cloud Code Assist quota limits, rolling usage windows, and model availability from a modern browser dashboard.
+A multi-account web dashboard engineered to track and manage Google Antigravity and Cloud Code Assist quota limits, rolling consumption windows, and model availability.
 
-Deployed seamlessly to **Vercel** or container runtimes with zero frontend secrets exposure.
+Backed by Convex Cloud for multi-tenant workspace persistence, proactive token refreshes, and real-time synchronization.
 
 ---
 
-## 🏗️ Architecture
+## Architecture Overview
 
 ```
-User signs in via Google OAuth
-           ↓
-Tokens stored in secure HTTP-only cookie (server-side only)
-           ↓
-Server calls Cloud Code Assist / Antigravity Quota endpoint:
-POST https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels
-           ↓
-Quota & usage data safely parsed and normalized
-           ↓
-Clean, high-contrast web dashboard with real-time auto-refresh
+Browser Client (React + Vite)
+       │
+       ▼ (Session Cookie / OAuth flow)
+Express Server API (server.ts / Node.js)
+       │
+       ├─────────────────────────────────┬─────────────────────────────────┐
+       ▼                                 ▼                                 ▼
+Google OAuth 2.0 Endpoint        Convex Cloud DB                   Cloud Code Assist API
+(Token grant & refresh)          (Workspaces, Accounts, Quotas)    (Private internal quota endpoints)
 ```
 
-### Technical References
-This implementation uses the reverse-engineered integration patterns established by active open-source projects:
-1. [wusimpl/AntigravityQuotaWatcher](https://github.com/wusimpl/AntigravityQuotaWatcher)
-2. [devtint/AntigravityQuotaManager](https://github.com/devtint/AntigravityQuotaManager)
-3. [lomeliDev/antigravity-bridge](https://github.com/lomeliDev/antigravity-bridge)
-4. [usamashehab/antigravity-proxy](https://github.com/usamashehab/antigravity-proxy)
+### Data & Isolation Flow
+
+1. **Authentication:** Initiated via Google OAuth 2.0 with Antigravity-specific scopes (`aicode`, `cclog`, `experimentsandconfigs`).
+2. **Workspace Isolation:** Every Google account signs in to its own isolated workspace by default. Accounts are linked into a shared workspace only via explicit authorization.
+3. **Storage Security:** Tokens and metadata persist in Convex Cloud. Sensitive credentials (`refresh_token`, `client_secret`) never reach the client browser.
+4. **Upstream Quota Calls:** Server proxies requests to `https://cloudcode-pa.googleapis.com/v1internal` endpoints to retrieve model quotas and tier details.
 
 ---
 
-## 🔒 Service Isolation & API Nature
+## Technical References
 
-> **Important**: The endpoints queried by this application (e.g. `https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels` and `v1internal:loadCodeAssist`) are **internal Google Cloud Code Assist service endpoints** used by the Antigravity extension ecosystem. They are not officially published as public developer APIs.
+This project builds upon reverse-engineered integration patterns documented across community projects:
 
-To adhere strictly to production isolation principles:
-- All upstream endpoint interactions are isolated in **`lib/antigravity/quota.ts`**.
-- The frontend never communicates directly with `cloudcode-pa.googleapis.com`.
-- If upstream schema or headers change, only `lib/antigravity/quota.ts` needs updating.
+- [wusimpl/AntigravityQuotaWatcher](https://github.com/wusimpl/AntigravityQuotaWatcher)
+- [devtint/AntigravityQuotaManager](https://github.com/devtint/AntigravityQuotaManager)
+- [ThePeppy/kiro-api-client](https://github.com/ThePeppy/kiro-api-client)
+- [Wei-Shaw/sub2api](https://github.com/Wei-Shaw/sub2api)
+- [usamashehab/antigravity-proxy](https://github.com/usamashehab/antigravity-proxy)
 
 ---
 
-## ⚙️ Environment Variables
+## Key Features
 
-Create a `.env` or `.env.local` file (or set these in your Vercel Project Settings):
+- **Multi-Account Workspaces:** Link multiple Google accounts into a unified workspace, or unlink them into separate workspaces.
+- **Proactive Token Refresh:** Automatic background refreshes triggered when tokens are within 5 minutes of expiration.
+- **Dual Tier Support:** Normalized support for both Starter and Google AI Pro tiers with model breakdown.
+- **Convex Cloud Persistence:** Zero local state dependencies; serverless database storage for all account metadata and snapshots.
+- **Private API Isolation:** All calls to `cloudcode-pa.googleapis.com` are encapsulated in server-side handlers.
+
+---
+
+## Environment Configuration
+
+Create a `.env` file in the project root:
+
+```bash
+cp .env.example .env
+```
 
 | Variable | Description | Required | Example |
 | :--- | :--- | :--- | :--- |
-| `GOOGLE_CLIENT_ID` | OAuth 2.0 Web Client ID from Google Cloud Console | **Yes** | `123456789-abc.apps.googleusercontent.com` |
-| `GOOGLE_CLIENT_SECRET` | OAuth 2.0 Client Secret | **Yes** | `GOCSPX-xxxxxxxxxxxxxxxx` |
-| `GOOGLE_REDIRECT_URI` | Full callback URL | Optional (auto-detected) | `https://your-app.vercel.app/api/auth/callback` |
-| `SESSION_SECRET` | 32+ character random encryption key for session cookies | **Yes** | `8f9c1a3b4e6d2f5a7c0e8b1d3f4a6c8e` |
-| `GOOGLE_CLOUD_PROJECT` | Optional GCP Project ID to associate with Code Assist calls | No | `my-gcp-project` |
+| `CONVEX_URL` | Convex Cloud deployment URL | Yes | `https://your-deployment.convex.cloud` |
+| `VITE_CONVEX_URL` | Frontend Convex Cloud deployment URL | Yes | `https://your-deployment.convex.cloud` |
+| `CONVEX_DEPLOY_KEY` | Deploy key for schema and function sync | Yes (for deployment) | `prod:your-deployment\|...` |
+| `GOOGLE_CLIENT_ID` | OAuth 2.0 Client ID | Yes | `1071006060591-...apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET` | OAuth 2.0 Client Secret | Yes | `GOCSPX-...` |
+| `GOOGLE_REDIRECT_URI` | Authorized OAuth callback redirect URL | Optional | `http://localhost:3001/api/auth/callback` |
+| `PORT` | Local server port | Optional (Default: `3001`) | `3001` |
+| `SESSION_SECRET` | Encryption key for session cookies | Yes | `32_character_random_string` |
+| `GOOGLE_CLOUD_PROJECT` | Associated GCP project identifier | No | `my-project-id` |
 
 ---
 
-## 🚀 Google Cloud Console Setup
+## Getting Started
 
-1. Go to [Google Cloud Console Credentials](https://console.cloud.google.com/apis/credentials).
-2. Click **Create Credentials** &rarr; **OAuth client ID**.
-3. Select **Web application**.
-4. Under **Authorized JavaScript origins**, add your app domain:
-   - For Vercel: `https://your-app.vercel.app`
-   - For local testing: `http://localhost:3000`
-5. Under **Authorized redirect URIs**, add:
-   - `https://your-app.vercel.app/api/auth/callback`
-   - `http://localhost:3000/api/auth/callback`
-6. Click **Save** and copy your **Client ID** and **Client Secret**.
-7. In the [OAuth Consent Screen](https://console.cloud.google.com/apis/credentials/consent):
-   - Add the scopes:
-     - `openid`
-     - `https://www.googleapis.com/auth/userinfo.email`
-     - `https://www.googleapis.com/auth/userinfo.profile`
-     - `https://www.googleapis.com/auth/cloud-platform`
+### 1. Prerequisites
 
----
+- Node.js 18+
+- npm or pnpm
+- A Convex account ([convex.dev](https://convex.dev))
 
-## 📦 Vercel Deployment
+### 2. Installation
 
-This project includes pre-configured **`vercel.json`** and **`api/index.ts`** handlers for turnkey serverless deployment.
-
-### Method 1: Git Integration (Recommended)
-1. Push this repository to GitHub or GitLab.
-2. In Vercel, click **Add New...** &rarr; **Project** and import the repository.
-3. Configure the environment variables (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `SESSION_SECRET`).
-4. Click **Deploy**. Vercel will build the Vite frontend to `dist/` and route `/api/*` to the serverless handler.
-
-### Method 2: Vercel CLI
-```bash
-npm install -g vercel
-vercel
-```
-
----
-
-## 💻 Local Development
+Clone the repository and install dependencies:
 
 ```bash
-# 1. Install dependencies
+git clone https://github.com/sakethreddypingili/antigravity-quota-watcher.git
+cd antigravity-quota-watcher
 npm install
+```
 
-# 2. Copy and configure .env
-cp .env.example .env
+### 3. Convex Setup
 
-# 3. Start development server (port 3000)
+Initialize or link your Convex project:
+
+```bash
+npx convex dev
+```
+
+Or deploy directly if using production keys:
+
+```bash
+CONVEX_DEPLOY_KEY="<YOUR_DEPLOY_KEY>" npx convex deploy
+```
+
+### 4. Running the Development Server
+
+Start both the Express API and Vite frontend:
+
+```bash
 npm run dev
+```
 
-# 4. Open in browser
-http://localhost:3000
+Access the dashboard at:
+
+```
+http://localhost:3001
 ```
 
 ---
 
-## 🛡️ Security Features
+## Deployment
 
-- **No Secrets in Browser**: Neither `GOOGLE_CLIENT_SECRET`, `refresh_token`, nor `access_token` are ever sent to client-side code.
-- **Encrypted Session Cookies**: Sessions are encrypted using AES-256-GCM and stored in HTTP-only, SameSite=None, Secure cookies.
-- **Automatic Token Refresh**: The server monitors token expiration dates and refreshes Google OAuth tokens automatically before calling the Antigravity backend.
-- **Diagnostics Sanitization**: The API inspector in the UI provides visibility into endpoints, HTTP status codes, and latency without leaking authorization tokens.
+### Vercel Deployment
+
+1. Import the repository into your Vercel team or personal account.
+2. In the Project Settings under **Environment Variables**, define:
+   - `CONVEX_URL`
+   - `VITE_CONVEX_URL`
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+   - `GOOGLE_REDIRECT_URI`
+   - `SESSION_SECRET`
+3. Deploy using default build settings. The Vite client compiles to `dist/` and server routes are handled via `api/index.ts`.
+
+---
+
+## Security Model
+
+- **Zero Client Secret Exposure:** The frontend receives only rendered quota telemetry; credentials and tokens remain strictly server-bound.
+- **Scoped Tenant Boundaries:** Account operations require authentication and are scoped to the active workspace session.
+- **Sanitized Diagnostics:** Network inspectors report HTTP statuses and latency metrics without outputting authorization headers or raw tokens.
