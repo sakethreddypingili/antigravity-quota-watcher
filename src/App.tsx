@@ -276,19 +276,19 @@ export default function App() {
           </div>
         ) : accounts.length > 0 ? (
           <div className="space-y-6">
-            {/* 3-Column Layout with explicit dedicated vertical dotted divider column */}
-            <div className="flex flex-col lg:flex-row items-stretch gap-6 lg:gap-8">
-              {/* Left Section: Google AI Pro (takes 2/3 width) */}
-              <div className="flex-1 lg:flex-[2] space-y-3.5 min-w-0">
+            {/* Deliberate 2-Column Composition: Focused, balanced width */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-[1280px]">
+              {/* Left Section: Google AI Pro (7 cols) */}
+              <div className="lg:col-span-7 space-y-4 min-w-0">
                 <div className="flex items-center gap-2 px-1">
                   <span className="w-2 h-2 rounded-full bg-[#D6B98A]" />
-                  <h3 className="text-[12px] font-[500] uppercase tracking-[0.08em] text-[#F4EFE7]/90">
+                  <h3 className="text-[12px] font-[600] uppercase tracking-[0.09em] text-[#F1F0EC]/90">
                     Google AI Pro
                   </h3>
                 </div>
 
                 {proAccounts.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="grid grid-cols-1 gap-5">
                     {proAccounts.map((acc) => (
                       <AccountQuotaCard
                         key={acc._id}
@@ -302,25 +302,17 @@ export default function App() {
                     ))}
                   </div>
                 ) : (
-                  <div className="p-8 rounded-[18px] border border-dashed border-[#29231F] bg-[#0F0E0D]/60 text-center text-xs text-[#706861]">
+                  <div className="p-8 rounded-[18px] border border-white/[0.065] bg-[#0D0F10] text-center text-xs text-[#6F6C66]">
                     No Google AI Pro accounts connected.
                   </div>
                 )}
               </div>
 
-              {/* Dedicated Vertical Dotted Divider (Refined champagne/espresso rhythm) */}
-              <div
-                className="hidden lg:flex flex-col items-center justify-center shrink-0 self-stretch px-2 select-none"
-                aria-hidden="true"
-              >
-                <div className="w-[1px] h-full border-r border-dotted border-[#3A3029]" />
-              </div>
-
-              {/* Right Section: Starter (takes 1/3 width, exact same card width as AI Pro) */}
-              <div className="flex-1 lg:flex-[1] space-y-3.5 min-w-0">
+              {/* Right Section: Starter (5 cols) */}
+              <div className="lg:col-span-5 space-y-4 min-w-0">
                 <div className="flex items-center gap-2 px-1">
-                  <span className="w-2 h-2 rounded-full bg-[#706861]" />
-                  <h3 className="text-[12px] font-[500] uppercase tracking-[0.08em] text-[#A9A097]">
+                  <span className="w-2 h-2 rounded-full bg-[#6F6C66]" />
+                  <h3 className="text-[12px] font-[600] uppercase tracking-[0.09em] text-[#A7A49D]">
                     Starter
                   </h3>
                 </div>
@@ -340,14 +332,22 @@ export default function App() {
                     ))}
                   </div>
                 ) : (
-                  <div className="p-10 rounded-[20px] border border-dashed border-[#29231F]/90 bg-[#0F0E0D]/40 text-center flex flex-col items-center justify-center gap-2 shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
-                    <div className="w-8 h-8 rounded-full bg-[#151311] border border-[#29231F] flex items-center justify-center text-[#706861] text-xs">
+                  <div className="p-8 rounded-[20px] border border-white/[0.065] bg-[#0D0F10] text-center flex flex-col items-center justify-center gap-3 shadow-[0_12px_32px_rgba(0,0,0,0.2)]">
+                    <div className="w-9 h-9 rounded-[10px] bg-[#121415] border border-white/[0.065] flex items-center justify-center text-[#A7A49D] text-xs shadow-sm">
                       ◇
                     </div>
-                    <div className="text-[13px] font-[500] text-[#A9A097]">Starter Accounts</div>
-                    <p className="text-[12px] text-[#706861] max-w-[220px]">
-                      No standard free tier accounts linked to this workspace.
-                    </p>
+                    <div className="space-y-1">
+                      <div className="text-[14px] font-[550] text-[#F1F0EC]">Starter Accounts</div>
+                      <p className="text-[12px] text-[#A7A49D] max-w-[240px] leading-relaxed">
+                        No standard tier accounts linked to this workspace.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleConnectAccount('link')}
+                      className="mt-1 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-[9px] text-[12px] font-[500] text-[#F1F0EC] bg-[#17191A] hover:bg-[#1E2122] border border-white/[0.08] hover:border-white/[0.14] transition cursor-pointer"
+                    >
+                      <span>+ Add Starter Account</span>
+                    </button>
                   </div>
                 )}
               </div>

@@ -18,18 +18,18 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
   const clampedPercentage = Math.max(0, Math.min(100, percentage));
   const strokeDashoffset = circumference - (clampedPercentage / 100) * circumference;
 
-  let strokeColor = '#27C981'; // status-success
-  let bgColor = 'rgba(39, 201, 129, 0.12)';
-  let glowColor = 'rgba(39, 201, 129, 0.25)';
+  let strokeColor = '#25D98B'; // status-success
+  let bgColor = '#252B28';
+  let glowColor = 'rgba(37, 217, 139, 0.12)';
 
-  if (clampedPercentage <= 10 || status === 'exhausted') {
-    strokeColor = '#D86666'; // status-error
-    bgColor = 'rgba(216, 102, 102, 0.12)';
-    glowColor = 'rgba(216, 102, 102, 0.25)';
-  } else if (clampedPercentage <= 30 || status === 'warning') {
-    strokeColor = '#D6A85A'; // status-warning
-    bgColor = 'rgba(214, 168, 90, 0.12)';
-    glowColor = 'rgba(214, 168, 90, 0.25)';
+  if (clampedPercentage <= 30 || status === 'exhausted') {
+    strokeColor = '#D86666'; // status-error (0-30%)
+    bgColor = '#2B2323';
+    glowColor = 'rgba(216, 102, 102, 0.12)';
+  } else if (clampedPercentage <= 70 || status === 'warning') {
+    strokeColor = '#D6A85A'; // status-warning (30-70%)
+    bgColor = '#2B2720';
+    glowColor = 'rgba(214, 168, 90, 0.12)';
   }
 
   return (

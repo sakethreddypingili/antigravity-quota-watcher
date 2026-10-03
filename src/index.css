@@ -2,33 +2,32 @@
 
 @layer base {
   :root {
-    --bg-page: #080706;
-    --surface-main: #0F0E0D;
-    --surface-elevated: #151311;
-    --surface-warm: #1A1714;
-    --surface-espresso: #241C17;
-    --border-subtle: #29231F;
-    --border-warm: #3A3029;
-    --text-primary: #F4EFE7;
-    --text-secondary: #A9A097;
-    --text-muted: #706861;
-    --champagne: #D6B98A;
-    --soft-gold: #BFA06A;
+    --bg-canvas: #08090A;
+    --surface-1: #0D0F10;
+    --surface-2: #121415;
+    --surface-3: #17191A;
+    --surface-warm: #191613;
+    --border-base: #25292A;
+    --border-warm: #332A22;
+    --text-primary: #F1F0EC;
+    --text-secondary: #A7A49D;
+    --text-muted: #6F6C66;
     --primary-blue: #3B82F6;
-    --primary-blue-hover: #2563EB;
-    --status-success: #27C981;
+    --primary-blue-hover: #4A8CFF;
+    --champagne: #D6B98A;
+    --status-success: #25D98B;
     --status-warning: #D6A85A;
     --status-error: #D86666;
   }
 
   body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background-color: #080706;
+    background-color: #08090A;
     background-image:
-      radial-gradient(circle at 18% 12%, rgba(214, 185, 138, 0.035), transparent 28%),
-      radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.025), transparent 30%);
+      radial-gradient(circle at 14% 10%, rgba(214, 185, 138, 0.022), transparent 26%),
+      radial-gradient(circle at 86% 16%, rgba(59, 130, 246, 0.025), transparent 28%);
     background-attachment: fixed;
-    color: #F4EFE7;
+    color: #F1F0EC;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -40,10 +39,13 @@
 }
 
 @layer utilities {
-  .dotted-partition {
-    background-image: radial-gradient(circle, #3A3029 2px, transparent 2px);
-    background-size: 100% 18px;
-    background-repeat: repeat-y;
-    background-position: left center;
+  .subtle-divider {
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      rgba(255, 255, 255, 0.065) 15%,
+      rgba(255, 255, 255, 0.065) 85%,
+      transparent
+    );
   }
 }

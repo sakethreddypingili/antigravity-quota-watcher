@@ -55,29 +55,24 @@ const LimitRow: React.FC<LimitRowProps> = ({
   status,
 }) => {
   return (
-    <div className="flex items-center justify-between px-3.5 py-2.5 rounded-[13px] bg-[#1A1714] hover:bg-[#201C19] border border-[#29231F]/90 shadow-[0_1px_3px_rgba(0,0,0,0.35)] transition-all duration-150">
-      <div className="space-y-0.5 pr-2 flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[13px] font-[450] text-[#F4EFE7]/90">{title}</span>
-          {timerBadge && (
-            <span
-              className={`inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-[6px] border ${
-                hasStarted
-                  ? 'bg-[#3B82F6]/10 text-[#60A5FA] border-[#3B82F6]/25'
-                  : 'bg-[#151311] text-[#A9A097] border-[#29231F]'
-              }`}
-            >
-              <Clock className={`w-2.5 h-2.5 ${hasStarted ? 'text-[#3B82F6]' : 'text-[#706861]'}`} />
-              {timerBadge}
-            </span>
-          )}
-        </div>
+    <div className="flex items-center justify-between px-4 py-3 rounded-[13px] bg-[#17191A] hover:bg-[#1C1F20] border border-[#25292A] shadow-[0_1px_2px_rgba(0,0,0,0.25)] transition-all duration-150 group">
+      {/* Metric title + Subtitle context underneath */}
+      <div className="space-y-0.5 pr-3 flex-1 min-w-0">
+        <div className="text-[13px] font-[500] text-[#F1F0EC] tracking-tight">{title}</div>
+        {timerBadge && (
+          <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#A7A49D]">
+            <Clock className={`w-3 h-3 ${hasStarted ? 'text-[#3B82F6]' : 'text-[#6F6C66]'}`} />
+            <span>{hasStarted ? `Resets ${timerBadge}` : timerBadge}</span>
+          </div>
+        )}
       </div>
-      <div className="flex items-center gap-2.5 shrink-0">
-        <span className="text-[15px] font-semibold font-mono text-[#F4EFE7] tracking-tight">
+
+      {/* Numerical percentage + optically centered CircularProgress */}
+      <div className="flex items-center gap-3 shrink-0">
+        <span className="text-[16px] font-[650] font-mono text-[#F1F0EC] tracking-tight">
           {percentage}%
         </span>
-        <CircularProgress percentage={percentage} size={28} strokeWidth={3.5} status={status} />
+        <CircularProgress percentage={percentage} size={30} strokeWidth={4} status={status} />
       </div>
     </div>
   );
@@ -200,90 +195,96 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
 
   return (
     <div
-      className={`rounded-[20px] border transition-all duration-200 flex flex-col justify-between ${
+      className={`rounded-[20px] border transition-all duration-200 flex flex-col justify-between relative group ${
         account.isActive
-          ? 'bg-[#0F0E0D] border-[#3B82F6]/30 shadow-[0_0_0_1px_rgba(59,130,246,0.15),0_16px_40px_rgba(0,0,0,0.5)]'
-          : 'bg-[#0F0E0D] border-[#29231F] hover:border-[#3A3029] shadow-[0_16px_40px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.02)]'
+          ? 'bg-[#0D0F10] border-white/[0.08] shadow-[0_12px_32px_rgba(0,0,0,0.35),0_0_0_1px_rgba(59,130,246,0.18)]'
+          : 'bg-[#0D0F10] border-white/[0.065] hover:border-white/[0.12] shadow-[0_12px_32px_rgba(0,0,0,0.24),0_2px_8px_rgba(0,0,0,0.18)]'
       }`}
     >
       <div>
-        {/* Account Top Header Banner */}
-        <div className="px-4.5 py-3.5 border-b border-[#29231F]/80 flex items-center justify-between gap-3 bg-[#151311]/60 rounded-t-[20px]">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-[10px] bg-[#1A1714] flex items-center justify-center overflow-hidden border border-[#29231F] shrink-0">
-              {hasValidPicture ? (
-                <img src={account.picture} alt={account.name} className="w-full h-full object-cover" />
-              ) : (
-                <User className="w-4 h-4 text-[#A9A097]" />
-              )}
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[14px] font-[550] text-[#F4EFE7] truncate max-w-[130px]" title={account.name || account.email}>
-                  {account.name || account.email.split('@')[0]}
-                </span>
-                <span className="text-[10px] font-medium font-mono px-2 py-0.5 rounded-[999px] border bg-[#1A1714] text-[#D6B98A] border-[#D6B98A]/20">
-                  {tierName}
-                </span>
+        {/* Account Hero Module Header */}
+        <div className="p-5 border-b border-[#25292A]/80 flex flex-col gap-3.5 bg-gradient-to-b from-[#121415]/70 to-[#0D0F10]/50 rounded-t-[20px]">
+          {/* Top row: Avatar + Identity */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-[12px] bg-[#17191A] flex items-center justify-center overflow-hidden border border-[#25292A] shrink-0 shadow-sm">
+                {hasValidPicture ? (
+                  <img src={account.picture} alt={account.name} className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-5 h-5 text-[#A7A49D]" />
+                )}
               </div>
-              <p className="text-[12px] text-[#A9A097] truncate max-w-[170px]">{account.email}</p>
+              <div className="min-w-0">
+                <div className="text-[14px] font-[550] text-[#F1F0EC] tracking-tight truncate max-w-[190px]" title={account.name || account.email}>
+                  {account.name || account.email.split('@')[0]}
+                </div>
+                <div className="text-[12px] font-[400] text-[#A7A49D] truncate max-w-[210px]">{account.email}</div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex items-center gap-1 shrink-0 pt-0.5">
+              <button
+                onClick={() => onRefreshAccount(account._id)}
+                disabled={isSyncing}
+                title="Refresh Quota"
+                className="w-7 h-7 flex items-center justify-center rounded-[8px] text-[#6F6C66] hover:text-[#3B82F6] hover:bg-[#3B82F6]/10 transition disabled:opacity-50 cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-[#3B82F6]' : ''}`} />
+              </button>
+
+              {canUnlink && onUnlinkAccount && (
+                <button
+                  onClick={() => {
+                    if (confirm(`Unlink ${account.email} from this workspace? It will be moved to its own isolated workspace.`)) {
+                      onUnlinkAccount(account.email);
+                    }
+                  }}
+                  title="Unlink from this group"
+                  className="w-7 h-7 flex items-center justify-center rounded-[8px] text-[#6F6C66] hover:text-[#D6A85A] hover:bg-[#D6A85A]/10 transition cursor-pointer"
+                >
+                  <Unlink2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  if (confirm(`Permanently remove account ${account.email}?`)) {
+                    onDeleteAccount(account._id);
+                  }
+                }}
+                title="Delete Account"
+                className="w-7 h-7 flex items-center justify-center rounded-[8px] text-[#6F6C66] hover:text-[#D86666] hover:bg-[#D86666]/10 transition cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 
-          {/* Account Controls: Tertiary treatment */}
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              onClick={() => onRefreshAccount(account._id)}
-              disabled={isSyncing}
-              title="Refresh Quota"
-              className="p-1.5 rounded-[8px] text-[#706861] hover:text-[#3B82F6] hover:bg-[#3B82F6]/10 transition disabled:opacity-50 cursor-pointer"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-[#3B82F6]' : ''}`} />
-            </button>
-
-            {canUnlink && onUnlinkAccount && (
-              <button
-                onClick={() => {
-                  if (confirm(`Unlink ${account.email} from this workspace? It will be moved to its own isolated workspace.`)) {
-                    onUnlinkAccount(account.email);
-                  }
-                }}
-                title="Unlink from this group"
-                className="p-1.5 rounded-[8px] text-[#706861] hover:text-[#D6A85A] hover:bg-[#D6A85A]/10 transition cursor-pointer"
-              >
-                <Unlink2 className="w-3.5 h-3.5" />
-              </button>
-            )}
-
-            <button
-              onClick={() => {
-                if (confirm(`Permanently remove account ${account.email}?`)) {
-                  onDeleteAccount(account._id);
-                }
-              }}
-              title="Delete Account"
-              className="p-1.5 rounded-[8px] text-[#706861] hover:text-[#D86666] hover:bg-[#D86666]/10 transition cursor-pointer"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+          {/* Bottom row: Material Tier Tag */}
+          <div className="flex items-center justify-between">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[7px] text-[11px] font-[500] font-mono bg-[#17191A] text-[#D6B98A] border border-[#D6B98A]/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#D6B98A]" />
+              {tierName}
+            </span>
           </div>
         </div>
 
 
         {/* Quota Sections (Both Weekly and 5-Hour Limit Pools) */}
-        <div className="p-4.5 space-y-3.5">
+        <div className="p-4.5 space-y-4">
           {displayGroups.map((group, gIdx) => {
             const isGemini = group.displayName.toLowerCase().includes('gemini');
             const Icon = isGemini ? Cpu : Box;
 
             return (
-              <div key={gIdx} className="space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs px-0.5">
-                  <Icon className="w-3.5 h-3.5 text-[#A9A097]" />
-                  <span className="font-[500] text-[#A9A097]">{group.displayName}</span>
+              <div key={gIdx} className="space-y-2">
+                <div className="flex items-center gap-1.5 text-xs px-1">
+                  <Icon className="w-3.5 h-3.5 text-[#A7A49D]" />
+                  <span className="font-[500] text-[#A7A49D]">{group.displayName}</span>
                 </div>
 
-                <div className="rounded-[14px] border border-[#29231F] bg-[#151311] p-1.5 space-y-1.5">
+                <div className="rounded-[16px] border border-[#25292A] bg-[#121415] p-2 space-y-2">
                   {(() => {
                     // Check if both weekly and 5h buckets exist in this group
                     const weeklyBucket = group.buckets.find(
