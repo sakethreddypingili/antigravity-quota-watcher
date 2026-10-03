@@ -20,8 +20,9 @@
         "./*"
       ]
     },
-    "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "exclude": ["convex"]
+  "exclude": [
+    "convex"
+  ]
 }
