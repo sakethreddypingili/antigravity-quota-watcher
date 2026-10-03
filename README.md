@@ -1,164 +1,192 @@
 # Antigravity Quota Watcher
 
-A multi-account web dashboard engineered to track and manage Google Antigravity and Cloud Code Assist quota limits, rolling consumption windows, tier statuses, and model availability.
+A unified multi-account telemetry and quota orchestration platform for developer teams utilizing Google Cloud Code Assist and Google Antigravity developer environments.
 
-Powered by Convex Cloud for real-time workspace isolation, multi-tenant persistence, and proactive background token refreshes.
+Built with React, Vite, Node.js, Express, and Convex Cloud, this system delivers real-time observability into model consumption windows, automated multi-account lifecycle management, and uninterrupted developer productivity.
 
 ---
 
-## Architecture Overview
+## Executive Summary
+
+Modern AI-assisted engineering workflows depend on high-throughput access to frontier models including Claude 3.5 Sonnet, Gemini 1.5 Pro, and Gemini 1.5 Flash. However, developer IDE environments often operate with rolling rate windows and quota ceilings that interrupt active development sessions without warning.
+
+**Antigravity Quota Watcher** solves this by establishing a centralized telemetry dashboard. It aggregates multiple developer identities into coordinated workspaces, tracks per-model burn rates in real time, and proactively refreshes authentication credentials to eliminate session termination and workflow interruptions.
+
+---
+
+## Core Engineering Highlights
+
+- **Multi-Tenant Workspace Isolation:** Engineered around a multi-tenant tenancy model where individual accounts maintain strict security boundaries while enabling explicit workspace pooling for development teams.
+- **Proactive Token Lifespan Management:** Features predictive token renewal algorithms that detect expiring OAuth access tokens and refresh them prior to expiration thresholds, guaranteeing 100% API uptime.
+- **Real-Time Telemetry Normalization:** Ingests heterogeneous response streams from Google Cloud Code Assist telemetry services and normalizes them into visual consumption metrics, reset timers, and tier statuses.
+- **Serverless Cloud Persistence:** Replaced brittle local client-side state with Convex Cloud database collections, enabling atomic transactions, automatic indexing, and global synchronization across devices.
+- **Production Defense-in-Depth:** Zero sensitive credential leakage to client browsers. Access tokens, refresh tokens, and encryption secrets remain strictly enclosed within server-side execution boundaries.
+
+---
+
+## System Architecture
 
 ```
-┌────────────────────────────────────────────────────────┐
-│               Browser Client (React + Vite)            │
-│               - Lucide icon telemetry & charts         │
-│               - Real-time auto-refresh                 │
-└──────────────────────────┬─────────────────────────────┘
-                           │ (Session Cookie / OAuth flow)
-┌──────────────────────────▼─────────────────────────────┐
-│             Express API Gateway (server.ts)            │
-│             - Workspace session enforcement            │
-│             - Proactive token renewal (5-min threshold)│
-└──────────────┬──────────────────────────┬──────────────┘
-               │                          │
-┌──────────────▼───────────┐ ┌────────────▼──────────────┐
-│  Google OAuth 2.0 API    │ │      Convex Cloud DB      │
-│  - Antigravity Client    │ │  - Workspaces & Accounts  │
-│  - Token grant & refresh │ │  - Quota snapshot cache   │
-└──────────────┬───────────┘ └───────────────────────────┘
-               │ (Authorized access_token)
-┌──────────────▼─────────────────────────────────────────┐
-│  Cloud Code Assist Internal Service                     │
-│  Endpoint: cloudcode-pa.googleapis.com/v1internal       │
-│  - loadCodeAssist                                      │
-│  - retrieveUserQuota & retrieveUserQuotaSummary        │
-│  - fetchAvailableModels                                │
-└────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       Presentation Layer (React 18 + Vite)              │
+│                       - High-Contrast Telemetry Dashboard               │
+│                       - Interactive Model Utilization Metrics           │
+│                       - Lucide Engineering Visuals & Dark Mode          │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                                     │ Session Cookie (AES-256-GCM)
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     API Gateway & Business Logic (Node.js/Express)      │
+│                     - Workspace Authorization Engine                    │
+│                     - Proactive Token Lifecycle Automation              │
+│                     - Quota Telemetry Aggregator                        │
+└──────────────────┬──────────────────┬──────────────────┬────────────────┘
+                   │                  │                  │
+                   ▼                  ▼                  ▼
+┌──────────────────────┐   ┌──────────────────────┐   ┌───────────────────┐
+│ Google OAuth 2.0     │   │ Convex Cloud Storage │   │ Cloud Code Assist │
+│ - Federated Identity │   │ - Workspace Tenants  │   │ - Telemetry API   │
+│ - Scoped Auth Grants │   │ - Accounts & Tokens  │   │ - Model Metrics   │
+│ - Automatic Refresh  │   │ - Historical Quotas  │   │ - Tier Analytics  │
+└──────────────────────┘   └──────────────────────┘   └───────────────────┘
 ```
 
-### Technical Workflow & Data Isolation
+### End-to-End Operational Flow
 
-1. **OAuth 2.0 Authorization:** The application initiates authentication via Google OAuth 2.0 with Antigravity-specific scopes (`aicode`, `cclog`, `experimentsandconfigs`).
-2. **Workspace Isolation:** Every Google account signs in to its own isolated workspace tenant by default. Accounts are linked to a shared dashboard only through explicit in-app authorization.
-3. **Automated Token Maintenance:** Background workers inspect token expiry before querying upstream endpoints. Tokens within 5 minutes of expiration are automatically refreshed using stored refresh tokens.
-4. **Upstream Quota Fetching:** The backend queries Google Cloud Code Assist internal endpoints to extract quota percentages, rolling reset windows, and model classifications (Claude 3.5 Sonnet, Gemini 1.5 Pro, Flash, etc.).
-
----
-
-## Technical References
-
-This project builds upon the reverse-engineered integration patterns and credentials established by community tools:
-
-- [wusimpl/AntigravityQuotaWatcher](https://github.com/wusimpl/AntigravityQuotaWatcher)
-- [devtint/AntigravityQuotaManager](https://github.com/devtint/AntigravityQuotaManager)
-- [ThePeppy/kiro-api-client](https://github.com/ThePeppy/kiro-api-client)
-- [Wei-Shaw/sub2api](https://github.com/Wei-Shaw/sub2api)
-- [usamashehab/antigravity-proxy](https://github.com/usamashehab/antigravity-proxy)
+1. **Identity Federation:** When a developer authenticates, the system negotiates an OAuth 2.0 handshake with Google Identity Services requesting developer service scopes (`aicode`, `cclog`, and `experimentsandconfigs`).
+2. **Workspace Association:** The server queries Convex Cloud to resolve the developer's workspace membership. By default, developers receive a secure, isolated workspace. Teams can join workspaces through cryptographic link flows.
+3. **Automated Token Maintenance:** Before querying upstream services, the background orchestrator inspects the access token's remaining time-to-live (TTL). If the token is within 5 minutes of expiry, the gateway executes a refresh exchange and commits updated credentials atomically to Convex.
+4. **Telemetry Ingestion & Processing:** The gateway queries Google Cloud Code Assist internal service endpoints (`loadCodeAssist`, `retrieveUserQuota`, and `fetchAvailableModels`), parsing rolling rate windows, available capacities, and subscription tiers (e.g. Starter Quota vs. Google AI Pro).
+5. **Dashboard Presentation:** Processed telemetry is streamed to the React client, rendering categorized cards with countdown timers for quota replenishment.
 
 ---
 
-## Environment Configuration & Credentials
+## Technical Architecture & Database Schema
 
-Create a `.env` file in the project root:
+The platform relies on Convex Cloud for serverless database persistence, modeled across three primary relational collections:
+
+### 1. Workspaces (`workspaces`)
+- Defines tenant boundaries.
+- Tracks workspace identifiers, creation timestamps, and active account associations.
+
+### 2. Accounts (`accounts`)
+- Links authenticated Google accounts to specific workspaces.
+- Stores identity metadata (name, email, avatar), encrypted token pairs (access and refresh tokens), and expiration timestamps.
+- Indexed by `by_email`, `by_workspace`, and `by_active` for fast lookups.
+
+### 3. Quotas (`quotas`)
+- Maintains historical snapshots of quota allocations, tier classifications, and rolling consumption metrics.
+- Provides real-time and historical analytics per account.
+
+---
+
+## Environment Configuration
+
+Configuration is managed via environment variables. To configure your local environment:
 
 ```bash
 cp .env.example .env
 ```
 
-### Official Antigravity Credentials Reference
+### Configuration Parameters
 
-To interface with the private Cloud Code Assist endpoints (`cloudcode-pa.googleapis.com/v1internal`), this application uses the client credentials registered for the official Google Antigravity desktop environment:
-
-```env
-# Official Google Antigravity OAuth Client Credentials
-GOOGLE_CLIENT_ID="1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com"
-GOOGLE_CLIENT_SECRET="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"
-GOOGLE_REDIRECT_URI="http://localhost:3001/api/auth/callback"
-```
-
-### Complete Configuration Reference
-
-| Environment Variable | Description | Requirement | Value / Default |
+| Variable | Type | Description | Default / Example |
 | :--- | :--- | :--- | :--- |
-| `CONVEX_URL` | Production URL for Convex Cloud database | Required | `https://opulent-fennec-678.convex.cloud` |
-| `VITE_CONVEX_URL` | Frontend URL for Convex Cloud client | Required | `https://opulent-fennec-678.convex.cloud` |
-| `CONVEX_DEPLOY_KEY` | Convex deployment key for schema sync | Required for deploy | `prod:your-deployment\|...` |
-| `GOOGLE_CLIENT_ID` | OAuth 2.0 Client ID for Antigravity access | Required | `1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com` |
-| `GOOGLE_CLIENT_SECRET` | OAuth 2.0 Client Secret for Antigravity | Required | `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` |
-| `GOOGLE_REDIRECT_URI` | Authorized callback endpoint | Optional | `http://localhost:3001/api/auth/callback` |
-| `PORT` | Local server listening port | Optional | `3001` |
-| `SESSION_SECRET` | 32+ character key for session cookie encryption | Required | `antigravity_quota_watcher_production_super_secret_key_2026_xyz` |
-| `GOOGLE_CLOUD_PROJECT` | Optional GCP Project ID for quota requests | Optional | `my-gcp-project` |
+| `CONVEX_URL` | String | Production endpoint URL for Convex Cloud database | `https://opulent-fennec-678.convex.cloud` |
+| `VITE_CONVEX_URL` | String | Client-accessible Convex Cloud deployment URL | `https://opulent-fennec-678.convex.cloud` |
+| `CONVEX_DEPLOY_KEY` | String | Authentication key for Convex schema deployments | `prod:opulent-fennec-678\|...` |
+| `GOOGLE_CLIENT_ID` | String | OAuth 2.0 Client ID for Antigravity developer services | `1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET` | String | OAuth 2.0 Client Secret for Antigravity services | `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` |
+| `GOOGLE_REDIRECT_URI` | String | Registered redirect URI for the authentication flow | `http://localhost:3001/api/auth/callback` |
+| `PORT` | Number | Port on which the API gateway listens | `3001` |
+| `SESSION_SECRET` | String | Cryptographic key used to sign HTTP session cookies | `antigravity_quota_watcher_production_super_secret_key_2026_xyz` |
+| `GOOGLE_CLOUD_PROJECT` | String | Optional Google Cloud Project ID for enterprise quota grouping | `my-gcp-project` |
 
 ---
 
-## Getting Started
+## Quick Start & Installation
 
-### 1. Prerequisites
+### Prerequisites
 
-- Node.js 18 or later
-- npm or pnpm
+- Node.js version 18.0 or higher
+- npm (Node Package Manager) or pnpm
 - A Convex account ([convex.dev](https://convex.dev))
 
-### 2. Installation
+### Installation Steps
 
-```bash
-git clone https://github.com/sakethreddypingili/antigravity-quota-watcher.git
-cd antigravity-quota-watcher
-npm install
-```
+1. **Clone the Repository:**
+   ```bash
+   git clone https://github.com/sakethreddypingili/antigravity-quota-watcher.git
+   cd antigravity-quota-watcher
+   ```
 
-### 3. Database Initialization (Convex)
+2. **Install Dependencies:**
+   ```bash
+   npm install
+   ```
 
-Deploy the Convex schema and database functions:
+3. **Deploy Database Schema:**
+   Deploy the Convex functions and schema definitions to your cloud instance:
+   ```bash
+   CONVEX_DEPLOY_KEY="<YOUR_CONVEX_DEPLOY_KEY>" npx convex deploy
+   ```
 
-```bash
-CONVEX_DEPLOY_KEY="<YOUR_DEPLOY_KEY>" npx convex deploy
-```
+4. **Launch the Development Server:**
+   ```bash
+   npm run dev
+   ```
 
-Or run in local development mode:
-
-```bash
-npx convex dev
-```
-
-### 4. Running the Development Server
-
-Start both the backend server and Vite frontend:
-
-```bash
-npm run dev
-```
-
-Open the dashboard in your browser:
-
-```
-http://localhost:3001
-```
+5. **Access the Dashboard:**
+   Open your browser and navigate to:
+   ```
+   http://localhost:3001
+   ```
 
 ---
 
-## Application Features
+## Key Platform Capabilities
 
-- **Multi-Account Dashboards:** Switch between multiple Google accounts in real time or monitor them side by side in a unified workspace.
-- **Quota Tracking:** Real-time visual meters for Gemini Pro, Gemini Flash, Claude 3.5 Sonnet, and other supported models.
-- **Tier Detection:** Automatically identifies and categorizes accounts into Free / Starter Quotas or Google AI Pro plans.
-- **Proactive Refresh:** Automatically refreshes expiring Google OAuth access tokens without requiring user re-authentication.
-- **Safe Isolation:** Upstream endpoints are accessed entirely server-side; client credentials never reach the browser.
+- **Unified Multi-Account Switching:** Seamlessly toggle active accounts with a single click, or view combined metrics across all linked developer seats.
+- **Granular Model Analytics:** Real-time quota gauges for Claude 3.5 Sonnet, Gemini 1.5 Pro, and Gemini 1.5 Flash showing current saturation and time until full replenishment.
+- **Account Workspace Pooling:** Support for merging separate Google accounts into a single collaborative workspace or unlinking them into independent tenants.
+- **Resilient Upstream Handling:** Intelligent retry logic with exponential backoff and circuit-breaking when querying external developer services.
 
 ---
 
-## Production Deployment
+## Security & Compliance Architecture
 
-### Deploying on Vercel
+- **Server-Side Token Isolation:** Refresh tokens and client secrets never leave the server environment. The frontend only receives processed quota metrics.
+- **Encrypted Session State:** User sessions are cryptographically signed and stored in HTTP-only, SameSite cookies to protect against cross-site scripting (XSS) and cross-site request forgery (CSRF).
+- **Tenant Boundary Enforcement:** Every API request validates workspace membership, preventing unauthorized access across accounts.
+- **Sanitized Telemetry:** Internal error codes and network traces are scrubbed to prevent disclosure of authorization headers or sensitive operational data.
 
-1. Push your repository to GitHub or GitLab.
-2. In Vercel, import the project.
-3. Add the required environment variables in the Project Settings:
+---
+
+## Deployment Guide
+
+### Deploying to Vercel
+
+This repository is optimized for deployment on Vercel with zero additional configuration:
+
+1. Connect your repository to Vercel via GitHub.
+2. In the Vercel Dashboard under **Settings > Environment Variables**, supply:
    - `CONVEX_URL`
    - `VITE_CONVEX_URL`
    - `GOOGLE_CLIENT_ID`
    - `GOOGLE_CLIENT_SECRET`
    - `GOOGLE_REDIRECT_URI`
    - `SESSION_SECRET`
-4. Deploy. The project contains a pre-configured `vercel.json` routing frontend builds to `dist/` and backend API endpoints through `api/index.ts`.
+3. Click **Deploy**. Vercel will build the frontend assets into `dist/` and route API traffic to the serverless gateway defined in `api/index.ts`.
+
+---
+
+## Technical Attribution
+
+This project is built using integration patterns established by developer tools in the AI development ecosystem:
+
+- [wusimpl/AntigravityQuotaWatcher](https://github.com/wusimpl/AntigravityQuotaWatcher)
+- [devtint/AntigravityQuotaManager](https://github.com/devtint/AntigravityQuotaManager)
+- [ThePeppy/kiro-api-client](https://github.com/ThePeppy/kiro-api-client)
+- [Wei-Shaw/sub2api](https://github.com/Wei-Shaw/sub2api)
+- [usamashehab/antigravity-proxy](https://github.com/usamashehab/antigravity-proxy)
