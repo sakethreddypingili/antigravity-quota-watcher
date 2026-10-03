@@ -26,8 +26,30 @@ var REQUIRED_SCOPES = [
   "https://www.googleapis.com/auth/experimentsandconfigs"
 ];
 function getRedirectUri(req) {
+  if (req) {
+    const rawHost = (req.headers["x-forwarded-host"] || req.headers.host || "");
+    const host = String(rawHost).split(",")[0].trim();
+    const rawProto = (req.headers["x-forwarded-proto"] || req.protocol || "http");
+    const proto = String(rawProto).split(",")[0].trim();
+    if (host && !host.includes("localhost") && !host.includes("127.0.0.1")) {
+      return `${proto}://${host}/api/auth/callback`;
+    }
+  }
   if (process.env.GOOGLE_REDIRECT_URI && process.env.GOOGLE_REDIRECT_URI.trim() !== "") {
-    return process.env.GOOGLE_REDIRECT_URI.trim();
+    const configured = process.env.GOOGLE_REDIRECT_URI.trim();
+    if (process.env.VERCEL && configured.includes("localhost")) {
+      const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+      if (vercelHost) {
+        return `https://${vercelHost.replace(/^https?:\/\//, "").replace(/\/+$/, "")}/api/auth/callback`;
+      }
+    }
+    return configured;
+  }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.replace(/^https?:\/\//, "").replace(/\/+$/, "")}/api/auth/callback`;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL.replace(/^https?:\/\//, "").replace(/\/+$/, "")}/api/auth/callback`;
   }
   if (process.env.APP_URL && process.env.APP_URL.trim() !== "") {
     const baseUrl = process.env.APP_URL.trim().replace(/\/+$/, "");
