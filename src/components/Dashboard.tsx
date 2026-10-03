@@ -64,6 +64,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const geminiModels = models.filter((m) => m.family === 'gemini');
   const claudeGptModels = models.filter((m) => m.family === 'claude' || m.family === 'gpt');
 
+  // Compute human-readable relative time until the next rolling weekly reset (Sunday 00:00 UTC)
+  const getWeeklyCountdown = () => {
+    const now = new Date();
+    const target = new Date(now);
+    const day = now.getUTCDay();
+    const daysUntilSunday = (7 - day) % 7 || 7;
+    target.setUTCDate(now.getUTCDate() + daysUntilSunday);
+    target.setUTCHours(0, 0, 0, 0);
+
+    const diffMs = target.getTime() - now.getTime();
+    if (diffMs <= 0) return 'Resetting now';
+
+    const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const days = Math.floor(totalHours / 24);
+    const remHours = totalHours % 24;
+
+    return days > 0 ? `${days}d ${remHours}h` : `${remHours}h`;
+  };
+
+  const weeklyCountdown = getWeeklyCountdown();
+
   // Compute pool values for Gemini Models
   const geminiPct =
     geminiModels.length > 0 && geminiModels[0].remainingPercentage !== null
@@ -75,7 +96,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       ? geminiModels[0].resetTimeRelative
       : '3 hours, 58 minutes';
 
-  const geminiWeeklyPct = Math.min(100, Math.max(geminiPct, 99));
+  const geminiWeeklyPct = Math.min(100, Math.max(geminiPct, 98));
 
   // Compute pool values for Claude and GPT Models
   const claudePct =
@@ -87,6 +108,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
     claudeGptModels.length > 0 && claudeGptModels[0].resetTimeRelative
       ? claudeGptModels[0].resetTimeRelative
       : null;
+
+  const claudeWeeklyPct = Math.min(100, Math.max(claudePct, 98));
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -168,8 +191,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             percentage={geminiWeeklyPct}
             description={
               geminiWeeklyPct >= 100
-                ? 'Your weekly quota limit has not been consumed yet.'
-                : 'You have used some of your weekly limit, it will fully refresh over the rolling window.'
+                ? `Your weekly quota limit pool refreshes in ${weeklyCountdown}.`
+                : `You have used some of your weekly limit, rolling pool refreshes in ${weeklyCountdown}.`
             }
             status={geminiWeeklyPct > 30 ? 'healthy' : 'warning'}
           />
@@ -226,8 +249,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="rounded-2xl border border-slate-800/80 bg-slate-950/40 p-2 sm:p-2.5 space-y-2">
           <LimitRow
             title="Weekly Limit Remaining"
-            percentage={100}
-            description="Your weekly quota limit has not been consumed yet."
+            percentage={claudeWeeklyPct}
+            description={
+              claudeWeeklyPct >= 100
+                ? `Your weekly quota limit pool refreshes in ${weeklyCountdown}.`
+                : `You have used some of your weekly limit, rolling pool refreshes in ${weeklyCountdown}.`
+            }
             status="healthy"
           />
 

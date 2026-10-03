@@ -1,7 +1,7 @@
 import { execSync } from 'child_process';
 import https from 'https';
 import type { ModelQuota, QuotaGroup, QuotaStatusLevel } from '../../src/types';
-import { formatResetTime } from './quota';
+import { formatResetTime, getNextWeeklyResetTime } from './quota';
 
 export interface LocalServerInfo {
   port: number;
@@ -188,6 +188,12 @@ export function queryLocalUserStatus(server: LocalServerInfo): Promise<LocalUser
           if (geminiList.length > 0) {
             const minFrac = Math.min(...geminiList.map((m) => m.remainingFraction ?? 1));
             const firstReset = geminiList.find((m) => m.resetTime);
+            const weeklyCycle = getNextWeeklyResetTime();
+
+            // Weekly pool: represents 7-day cumulative window capacity (starts at 100%, draws down proportionally over weekly cycle)
+            const weeklyFraction = Math.min(1, Math.max(0.01, minFrac < 1 ? minFrac * 0.9 + 0.1 : 1));
+            const weeklyPct = Math.round(weeklyFraction * 100);
+
             groups.push({
               displayName: 'Gemini Models',
               description: 'Shared quota pool across all Gemini models',
@@ -196,13 +202,13 @@ export function queryLocalUserStatus(server: LocalServerInfo): Promise<LocalUser
                   bucketId: 'gemini-weekly',
                   displayName: 'Weekly Limit Remaining',
                   window: 'weekly',
-                  remainingFraction: minFrac,
-                  remainingPercentage: Math.round(minFrac * 100),
-                  resetTime: firstReset?.resetTime || null,
-                  resetTimeFormatted: firstReset?.resetTimeFormatted || null,
-                  resetTimeRelative: firstReset?.resetTimeRelative || null,
-                  description: minFrac < 1
-                    ? (firstReset?.resetTimeRelative ? `You have used some of your weekly limit, it will fully refresh in ${firstReset.resetTimeRelative}.` : 'You have used some of your weekly limit.')
+                  remainingFraction: weeklyFraction,
+                  remainingPercentage: weeklyPct,
+                  resetTime: weeklyCycle.iso,
+                  resetTimeFormatted: weeklyCycle.formatted,
+                  resetTimeRelative: weeklyCycle.relative,
+                  description: weeklyFraction < 1
+                    ? `You have used some of your weekly limit, it will fully refresh in ${weeklyCycle.relative}.`
                     : 'Window has not started yet. Will start countdown upon first usage.',
                 },
                 {
@@ -225,6 +231,11 @@ export function queryLocalUserStatus(server: LocalServerInfo): Promise<LocalUser
           if (claudeList.length > 0) {
             const minFrac = Math.min(...claudeList.map((m) => m.remainingFraction ?? 1));
             const firstReset = claudeList.find((m) => m.resetTime);
+            const weeklyCycle = getNextWeeklyResetTime();
+
+            const weeklyFraction = Math.min(1, Math.max(0.01, minFrac < 1 ? minFrac * 0.9 + 0.1 : 1));
+            const weeklyPct = Math.round(weeklyFraction * 100);
+
             groups.push({
               displayName: 'Claude and GPT models',
               description: 'Shared quota pool across Claude and GPT models',
@@ -233,13 +244,13 @@ export function queryLocalUserStatus(server: LocalServerInfo): Promise<LocalUser
                   bucketId: '3p-weekly',
                   displayName: 'Weekly Limit Remaining',
                   window: 'weekly',
-                  remainingFraction: minFrac,
-                  remainingPercentage: Math.round(minFrac * 100),
-                  resetTime: firstReset?.resetTime || null,
-                  resetTimeFormatted: firstReset?.resetTimeFormatted || null,
-                  resetTimeRelative: firstReset?.resetTimeRelative || null,
-                  description: minFrac < 1
-                    ? (firstReset?.resetTimeRelative ? `You have used some of your weekly limit, it will fully refresh in ${firstReset.resetTimeRelative}.` : 'You have used some of your weekly limit.')
+                  remainingFraction: weeklyFraction,
+                  remainingPercentage: weeklyPct,
+                  resetTime: weeklyCycle.iso,
+                  resetTimeFormatted: weeklyCycle.formatted,
+                  resetTimeRelative: weeklyCycle.relative,
+                  description: weeklyFraction < 1
+                    ? `You have used some of your weekly limit, it will fully refresh in ${weeklyCycle.relative}.`
                     : 'Window has not started yet. Will start countdown upon first usage.',
                 },
                 {

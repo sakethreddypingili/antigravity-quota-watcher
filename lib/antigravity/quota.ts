@@ -85,6 +85,30 @@ export function formatResetTime(isoString: string | null | undefined): {
 }
 
 /**
+ * Compute the next weekly quota cycle reset time (Sunday 00:00 UTC)
+ */
+export function getNextWeeklyResetTime(): {
+  iso: string;
+  formatted: string;
+  relative: string;
+} {
+  const now = new Date();
+  const target = new Date(now);
+  const day = now.getUTCDay();
+  const daysUntilSunday = (7 - day) % 7 || 7;
+  target.setUTCDate(now.getUTCDate() + daysUntilSunday);
+  target.setUTCHours(0, 0, 0, 0);
+
+  const iso = target.toISOString();
+  const { formatted, relative } = formatResetTime(iso);
+  return {
+    iso,
+    formatted: formatted || iso,
+    relative: relative || 'Weekly cycle',
+  };
+}
+
+/**
  * Identify the model family from its ID or name
  */
 function identifyModelFamily(modelId: string): 'gemini' | 'claude' | 'gpt' | 'other' {

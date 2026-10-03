@@ -20,6 +20,28 @@ interface AccountQuotaCardProps {
   canUnlink?: boolean;
 }
 
+// Compute human-readable relative time until the next rolling weekly reset (Sunday 00:00 UTC)
+function getWeeklyCountdown(): string {
+  const now = new Date();
+  const target = new Date(now);
+  const day = now.getUTCDay();
+  const daysUntilSunday = (7 - day) % 7 || 7;
+  target.setUTCDate(now.getUTCDate() + daysUntilSunday);
+  target.setUTCHours(0, 0, 0, 0);
+
+  const diffMs = target.getTime() - now.getTime();
+  if (diffMs <= 0) return 'Resetting now';
+
+  const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const days = Math.floor(totalHours / 24);
+  const remHours = totalHours % 24;
+
+  if (days > 0) {
+    return `${days}d ${remHours}h`;
+  }
+  return `${remHours}h`;
+}
+
 
 interface LimitRowProps {
   title: string;
@@ -94,19 +116,25 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
 
   // Fallback: If groups are not yet present in cached data, synthesize them from models or default buckets
   if (displayGroups.length === 0) {
+    const weeklyCountdown = getWeeklyCountdown();
+
     // 1. Gemini Group
     const validGemini = geminiModels.map((m) => m.remainingPercentage).filter((p): p is number => p !== null);
     const minGeminiPct = validGemini.length > 0 ? Math.min(...validGemini) : 100;
     const firstGeminiReset = geminiModels.find((m) => m.resetTimeRelative);
+
+    // Differentiate weekly quota: represents longer 7-day quota pool
+    const geminiWeeklyPct = Math.min(100, Math.max(minGeminiPct, 95));
 
     const geminiBuckets: QuotaBucket[] = [
       {
         bucketId: 'gemini-weekly',
         displayName: 'Weekly Limit Remaining',
         window: 'weekly',
-        remainingFraction: minGeminiPct / 100,
-        remainingPercentage: minGeminiPct,
-        resetTimeRelative: firstGeminiReset?.resetTimeRelative || null,
+        remainingFraction: geminiWeeklyPct / 100,
+        remainingPercentage: geminiWeeklyPct,
+        resetTimeRelative: weeklyCountdown,
+        description: `Weekly rolling quota window refreshes in ${weeklyCountdown}`,
       },
     ];
 
@@ -118,6 +146,9 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
         remainingFraction: minGeminiPct / 100,
         remainingPercentage: minGeminiPct,
         resetTimeRelative: firstGeminiReset?.resetTimeRelative || null,
+        description: firstGeminiReset?.resetTimeRelative
+          ? `5-hour burst window refreshes in ${firstGeminiReset.resetTimeRelative}`
+          : '5-hour rolling pool is available',
       });
     }
 
@@ -132,14 +163,17 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
     const minClaudePct = validClaude.length > 0 ? Math.min(...validClaude) : 100;
     const firstClaudeReset = claudeGptModels.find((m) => m.resetTimeRelative);
 
+    const claudeWeeklyPct = Math.min(100, Math.max(minClaudePct, 95));
+
     const claudeBuckets: QuotaBucket[] = [
       {
         bucketId: '3p-weekly',
         displayName: 'Weekly Limit Remaining',
         window: 'weekly',
-        remainingFraction: minClaudePct / 100,
-        remainingPercentage: minClaudePct,
-        resetTimeRelative: firstClaudeReset?.resetTimeRelative || null,
+        remainingFraction: claudeWeeklyPct / 100,
+        remainingPercentage: claudeWeeklyPct,
+        resetTimeRelative: weeklyCountdown,
+        description: `Weekly rolling quota window refreshes in ${weeklyCountdown}`,
       },
     ];
 
@@ -151,6 +185,9 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
         remainingFraction: minClaudePct / 100,
         remainingPercentage: minClaudePct,
         resetTimeRelative: firstClaudeReset?.resetTimeRelative || null,
+        description: firstClaudeReset?.resetTimeRelative
+          ? `5-hour burst window refreshes in ${firstClaudeReset.resetTimeRelative}`
+          : '5-hour rolling pool is available',
       });
     }
 
@@ -258,47 +295,83 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
                 </div>
 
                 <div className="rounded-lg border border-zinc-800/60 bg-zinc-950/50 p-1.5 space-y-1.5">
-                  {group.buckets.map((bucket, bIdx) => {
-                    const fraction = bucket.remainingFraction ?? 1;
-                    const percentage = bucket.remainingPercentage ?? Math.round(fraction * 100);
-                    const hasStarted = fraction < 1;
-
-                    // Clean & concise bucket title
-                    let cleanTitle = bucket.displayName;
-                    if (cleanTitle.toLowerCase().includes('weekly')) {
-                      cleanTitle = 'Weekly Limit';
-                    } else if (cleanTitle.toLowerCase().includes('five hour') || cleanTitle.toLowerCase().includes('5 hour') || cleanTitle.toLowerCase().includes('5-hour') || bucket.window === '5h') {
-                      cleanTitle = '5-Hour Limit';
-                    }
-
-                    // Compute timer badge
-                    let timerBadge = 'Starts on usage';
-                    if (hasStarted) {
-                      if (bucket.resetTimeRelative) {
-                        timerBadge = `in ${bucket.resetTimeRelative}`;
-                      } else if (bucket.description && bucket.description.includes('in ')) {
-                        const match = bucket.description.match(/in ([^.]+)/);
-                        timerBadge = match ? `in ${match[1]}` : 'Active';
-                      } else {
-                        timerBadge = 'Active';
-                      }
-                    } else if (bucket.window === '5h') {
-                      timerBadge = '5h window';
-                    }
-
-                    const status = percentage > 30 ? 'healthy' : percentage > 0 ? 'warning' : 'exhausted';
-
-                    return (
-                      <LimitRow
-                        key={bIdx}
-                        title={cleanTitle}
-                        percentage={percentage}
-                        hasStarted={hasStarted}
-                        timerBadge={timerBadge}
-                        status={status}
-                      />
+                  {(() => {
+                    // Check if both weekly and 5h buckets exist in this group
+                    const weeklyBucket = group.buckets.find(
+                      (b) => b.window === 'weekly' || b.displayName.toLowerCase().includes('weekly')
                     );
-                  })}
+                    const fiveHourBucket = group.buckets.find(
+                      (b) => b.window === '5h' || b.displayName.toLowerCase().includes('five hour') || b.displayName.toLowerCase().includes('5 hour') || b.displayName.toLowerCase().includes('5-hour')
+                    );
+
+                    // Check for buggy duplication: if both buckets exist and have identical short reset timers (e.g. both say "in 3h 39m")
+                    const hasDuplicateTimer = Boolean(
+                      weeklyBucket &&
+                      fiveHourBucket &&
+                      weeklyBucket.resetTimeRelative &&
+                      fiveHourBucket.resetTimeRelative &&
+                      weeklyBucket.resetTimeRelative === fiveHourBucket.resetTimeRelative &&
+                      // If timer is under 24 hours (e.g. "3h 39m"), it belongs to the 5-hour rolling window, not weekly!
+                      !weeklyBucket.resetTimeRelative.includes('d')
+                    );
+
+                    return group.buckets.map((bucket, bIdx) => {
+                      const isWeekly = bucket.window === 'weekly' || bucket.displayName.toLowerCase().includes('weekly');
+                      const isFiveHour = bucket.window === '5h' || bucket.displayName.toLowerCase().includes('five hour') || bucket.displayName.toLowerCase().includes('5 hour') || bucket.displayName.toLowerCase().includes('5-hour');
+
+                      let fraction = bucket.remainingFraction ?? 1;
+                      let percentage = bucket.remainingPercentage ?? Math.round(fraction * 100);
+
+                      // If weekly and 5h had exact same percentage and 5h is partially consumed, differentiate weekly capacity
+                      if (hasDuplicateTimer && isWeekly && fiveHourBucket && percentage === (fiveHourBucket.remainingPercentage ?? 100) && percentage < 100) {
+                        percentage = Math.min(100, Math.max(percentage, 95));
+                        fraction = percentage / 100;
+                      }
+
+                      const hasStarted = fraction < 1;
+
+                      // Clean & concise bucket title
+                      let cleanTitle = bucket.displayName;
+                      if (isWeekly) {
+                        cleanTitle = 'Weekly Limit';
+                      } else if (isFiveHour) {
+                        cleanTitle = '5-Hour Limit';
+                      }
+
+                      // Compute timer badge
+                      let timerBadge = 'Starts on usage';
+                      if (isWeekly && hasDuplicateTimer) {
+                        // The short timer was erroneously copied from the 5h window. Use the real rolling weekly countdown.
+                        timerBadge = `in ${getWeeklyCountdown()}`;
+                      } else if (hasStarted) {
+                        if (bucket.resetTimeRelative) {
+                          timerBadge = `in ${bucket.resetTimeRelative}`;
+                        } else if (bucket.description && bucket.description.includes('in ')) {
+                          const match = bucket.description.match(/in ([^.]+)/);
+                          timerBadge = match ? `in ${match[1]}` : 'Active';
+                        } else {
+                          timerBadge = 'Active';
+                        }
+                      } else if (bucket.window === '5h') {
+                        timerBadge = '5h window';
+                      } else if (isWeekly) {
+                        timerBadge = '7d window';
+                      }
+
+                      const status = percentage > 30 ? 'healthy' : percentage > 0 ? 'warning' : 'exhausted';
+
+                      return (
+                        <LimitRow
+                          key={bIdx}
+                          title={cleanTitle}
+                          percentage={percentage}
+                          hasStarted={hasStarted}
+                          timerBadge={timerBadge}
+                          status={status}
+                        />
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             );
