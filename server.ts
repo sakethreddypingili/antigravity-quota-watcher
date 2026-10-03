@@ -11,16 +11,16 @@ import {
   getGoogleOAuthConfig,
   getRedirectUri,
   getCloudProjectId,
-} from './lib/auth/google.ts';
+} from './lib/auth/google';
 import {
   getSessionFromRequest,
   setSessionCookie,
   clearSessionCookie,
-} from './lib/auth/session.ts';
-import { fetchAntigravityQuota } from './lib/antigravity/quota.ts';
-import { discoverLocalAntigravityServer, queryLocalUserStatus } from './lib/antigravity/localServer.ts';
-import { fallbackStore, getConvexClient, type StoredAccount } from './lib/db/convex.ts';
-import type { AuthSession, QuotaDataResponse, AccountSummary, AccountsListResponse } from './src/types.ts';
+} from './lib/auth/session';
+import { fetchAntigravityQuota } from './lib/antigravity/quota';
+import { discoverLocalAntigravityServer, queryLocalUserStatus } from './lib/antigravity/localServer';
+import { fallbackStore, getConvexClient, type StoredAccount } from './lib/db/convex';
+import type { AuthSession, QuotaDataResponse, AccountSummary, AccountsListResponse } from './src/types';
 
 async function startServer() {
   const app = express();

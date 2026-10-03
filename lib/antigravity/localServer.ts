@@ -1,7 +1,7 @@
 import { execSync } from 'child_process';
 import https from 'https';
-import type { ModelQuota, QuotaGroup, QuotaStatusLevel } from '../../src/types.ts';
-import { formatResetTime } from './quota.ts';
+import type { ModelQuota, QuotaGroup, QuotaStatusLevel } from '../../src/types';
+import { formatResetTime } from './quota';
 
 export interface LocalServerInfo {
   port: number;

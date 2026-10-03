@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import type { Request, Response } from 'express';
-import type { AuthSession } from '../../src/types.ts';
+import type { AuthSession } from '../../src/types';
 
 const COOKIE_NAME = 'ag_session';
 const DEFAULT_SECRET = 'antigravity-quota-default-secret-fallback-key-32chars!';

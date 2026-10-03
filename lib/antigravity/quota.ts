@@ -9,8 +9,8 @@
  * Isolating this logic here allows rapid updates if upstream endpoints evolve.
  */
 
-import type { AntigravityDiagnostics, ModelQuota, QuotaGroup, QuotaStatusLevel } from '../../src/types.ts';
-import { formatModelDisplayName } from './modelNames.ts';
+import type { AntigravityDiagnostics, ModelQuota, QuotaGroup, QuotaStatusLevel } from '../../src/types';
+import { formatModelDisplayName } from './modelNames';
 
 export const CODE_ASSIST_BASE_URL = 'https://cloudcode-pa.googleapis.com';
 export const FETCH_MODELS_ENDPOINT = `${CODE_ASSIST_BASE_URL}/v1internal:fetchAvailableModels`;
@@ -116,7 +116,7 @@ function computeQuotaStatus(remainingFraction: number | null | undefined): Quota
  */
 export const RETRIEVE_USER_QUOTA_ENDPOINT = `${CODE_ASSIST_BASE_URL}/v1internal:retrieveUserQuota`;
 export const RETRIEVE_USER_QUOTA_SUMMARY_ENDPOINT = `${CODE_ASSIST_BASE_URL}/v1internal:retrieveUserQuotaSummary`;
-import { discoverLocalAntigravityServer, queryLocalUserStatus } from './localServer.ts';
+import { discoverLocalAntigravityServer, queryLocalUserStatus } from './localServer';
 
 export async function fetchAntigravityQuota(
   accessToken?: string
