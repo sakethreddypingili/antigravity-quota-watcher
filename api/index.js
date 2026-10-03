@@ -1,9 +1,7 @@
-// server.ts
+// api/index.ts
 import "dotenv/config";
 import express from "express";
 import cookieParser from "cookie-parser";
-import path from "path";
-import { createServer as createViteServer } from "vite";
 
 // lib/auth/google.ts
 var GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -310,12 +308,12 @@ function computeQuotaStatus(remainingFraction) {
 }
 function queryLocalUserStatus(server) {
   return new Promise((resolve) => {
-    const sendRpc = (path2) => {
+    const sendRpc = (path) => {
       return new Promise((resRpc) => {
         const options = {
           hostname: "127.0.0.1",
           port: server.port,
-          path: path2,
+          path,
           method: "POST",
           rejectUnauthorized: false,
           timeout: 4e3,
@@ -1138,61 +1136,61 @@ var ConvexDatabaseService = class {
 var dbService = new ConvexDatabaseService();
 var fallbackStore = dbService;
 
-// server.ts
-function createApiApp() {
-  const app2 = express();
-  app2.use(express.json());
-  app2.use(cookieParser());
-  app2.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", timestamp: (/* @__PURE__ */ new Date()).toISOString() });
+// api/index.ts
+var app = express();
+var PORT = Number(process.env.PORT) || 3001;
+app.use(express.json());
+app.use(cookieParser());
+app.get("/api/health", (_req, res) => {
+  res.json({ status: "ok", timestamp: (/* @__PURE__ */ new Date()).toISOString() });
+});
+app.get("/api/auth/config", (req, res) => {
+  const config = getGoogleOAuthConfig(req);
+  res.json({
+    hasConfig: config.isConfigured,
+    missingVars: config.missing,
+    clientId: config.clientId,
+    projectId: config.projectId,
+    redirectUri: config.redirectUri,
+    appUrl: process.env.APP_URL || null,
+    suggestedRedirectUris: [
+      config.redirectUri,
+      ...process.env.APP_URL ? [`${process.env.APP_URL.replace(/\/+$/, "")}/api/auth/callback`] : [],
+      "http://localhost:3000/api/auth/callback"
+    ]
   });
-  app2.get("/api/auth/config", (req, res) => {
+});
+app.get("/api/auth/url", (req, res) => {
+  try {
     const config = getGoogleOAuthConfig(req);
-    res.json({
-      hasConfig: config.isConfigured,
-      missingVars: config.missing,
-      clientId: config.clientId,
-      projectId: config.projectId,
-      redirectUri: config.redirectUri,
-      appUrl: process.env.APP_URL || null,
-      suggestedRedirectUris: [
-        config.redirectUri,
-        ...process.env.APP_URL ? [`${process.env.APP_URL.replace(/\/+$/, "")}/api/auth/callback`] : [],
-        "http://localhost:3000/api/auth/callback"
-      ]
-    });
-  });
-  app2.get("/api/auth/url", (req, res) => {
-    try {
-      const config = getGoogleOAuthConfig(req);
-      if (!config.isConfigured) {
-        return res.status(400).json({
-          error: "Google OAuth is not configured.",
-          missingVars: config.missing,
-          redirectUri: config.redirectUri
-        });
-      }
-      const mode = req.query.mode === "link" ? "link" : "login";
-      const session = getSessionFromRequest(req);
-      const linkEmail = mode === "link" ? session?.user?.email : void 0;
-      const statePayload = JSON.stringify({
-        nonce: Math.random().toString(36).substring(2, 15),
-        mode,
-        linkEmail
+    if (!config.isConfigured) {
+      return res.status(400).json({
+        error: "Google OAuth is not configured.",
+        missingVars: config.missing,
+        redirectUri: config.redirectUri
       });
-      const state = Buffer.from(statePayload).toString("base64url");
-      const url = generateAuthUrl(req, state);
-      res.json({ url, redirectUri: config.redirectUri });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      res.status(500).json({ error: message });
     }
-  });
-  const oauthCallbackHandler = async (req, res) => {
-    const { code, error, error_description } = req.query;
-    if (error) {
-      const msg = error_description || error;
-      return res.send(`
+    const mode = req.query.mode === "link" ? "link" : "login";
+    const session = getSessionFromRequest(req);
+    const linkEmail = mode === "link" ? session?.user?.email : void 0;
+    const statePayload = JSON.stringify({
+      nonce: Math.random().toString(36).substring(2, 15),
+      mode,
+      linkEmail
+    });
+    const state = Buffer.from(statePayload).toString("base64url");
+    const url = generateAuthUrl(req, state);
+    res.json({ url, redirectUri: config.redirectUri });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: message });
+  }
+});
+var oauthCallbackHandler = async (req, res) => {
+  const { code, error, error_description } = req.query;
+  if (error) {
+    const msg = error_description || error;
+    return res.send(`
         <!DOCTYPE html>
         <html>
           <head>
@@ -1214,58 +1212,58 @@ function createApiApp() {
           </body>
         </html>
       `);
-    }
-    if (!code || typeof code !== "string") {
-      return res.status(400).send("Authorization code missing in callback request.");
-    }
-    try {
-      const redirectUri = getRedirectUri(req);
-      const tokens = await exchangeCodeForTokens(code, redirectUri);
-      const user = await fetchGoogleUserInfo(tokens.access_token);
-      const session = {
-        user,
-        tokens: {
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
-          expiry_date: tokens.expiry_date,
-          token_type: tokens.token_type,
-          scope: tokens.scope
-        },
-        createdAt: Date.now()
-      };
-      let mode = "login";
-      let linkWithEmail = void 0;
-      const stateParam = req.query.state;
-      if (typeof stateParam === "string") {
-        try {
-          const parsedState = JSON.parse(Buffer.from(stateParam, "base64url").toString("utf8"));
-          mode = parsedState.mode || "login";
-          linkWithEmail = parsedState.linkEmail;
-        } catch {
-        }
+  }
+  if (!code || typeof code !== "string") {
+    return res.status(400).send("Authorization code missing in callback request.");
+  }
+  try {
+    const redirectUri = getRedirectUri(req);
+    const tokens = await exchangeCodeForTokens(code, redirectUri);
+    const user = await fetchGoogleUserInfo(tokens.access_token);
+    const session = {
+      user,
+      tokens: {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        expiry_date: tokens.expiry_date,
+        token_type: tokens.token_type,
+        scope: tokens.scope
+      },
+      createdAt: Date.now()
+    };
+    let mode = "login";
+    let linkWithEmail = void 0;
+    const stateParam = req.query.state;
+    if (typeof stateParam === "string") {
+      try {
+        const parsedState = JSON.parse(Buffer.from(stateParam, "base64url").toString("utf8"));
+        mode = parsedState.mode || "login";
+        linkWithEmail = parsedState.linkEmail;
+      } catch {
       }
-      setSessionCookie(res, session, req);
-      if (tokens.refresh_token) {
-        try {
-          const accountId = await fallbackStore.upsertAccount({
-            email: user.email,
-            name: user.name,
-            picture: user.picture,
-            refreshToken: tokens.refresh_token,
-            accessToken: tokens.access_token,
-            tokenExpiry: tokens.expiry_date,
-            linkWithEmail: mode === "link" ? linkWithEmail : void 0
-          });
-          fetchAntigravityQuota(tokens.access_token).then(async (res2) => {
-            if (res2.success && res2.models.length > 0) {
-              await fallbackStore.saveQuota(accountId, user.email, res2.models, res2.tierInfo, res2.groups);
-            }
-          }).catch(console.error);
-        } catch (storeErr) {
-          console.error("Failed to store account in Convex:", storeErr);
-        }
+    }
+    setSessionCookie(res, session, req);
+    if (tokens.refresh_token) {
+      try {
+        const accountId = await fallbackStore.upsertAccount({
+          email: user.email,
+          name: user.name,
+          picture: user.picture,
+          refreshToken: tokens.refresh_token,
+          accessToken: tokens.access_token,
+          tokenExpiry: tokens.expiry_date,
+          linkWithEmail: mode === "link" ? linkWithEmail : void 0
+        });
+        fetchAntigravityQuota(tokens.access_token).then(async (res2) => {
+          if (res2.success && res2.models.length > 0) {
+            await fallbackStore.saveQuota(accountId, user.email, res2.models, res2.tierInfo, res2.groups);
+          }
+        }).catch(console.error);
+      } catch (storeErr) {
+        console.error("Failed to store account in Convex:", storeErr);
       }
-      res.send(`
+    }
+    res.send(`
         <!DOCTYPE html>
         <html>
           <head>
@@ -1297,9 +1295,9 @@ function createApiApp() {
           </body>
         </html>
       `);
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      res.status(500).send(`
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    res.status(500).send(`
         <!DOCTYPE html>
         <html>
           <head>
@@ -1320,451 +1318,406 @@ function createApiApp() {
           </body>
         </html>
       `);
-    }
-  };
-  app2.get("/api/auth/callback", oauthCallbackHandler);
-  app2.get("/auth/callback", oauthCallbackHandler);
-  app2.get("/api/auth/me", async (req, res) => {
-    const config = getGoogleOAuthConfig(req);
-    const session = getSessionFromRequest(req);
-    if (session) {
-      return res.json({
-        authenticated: true,
-        user: {
-          email: session.user.email,
-          name: session.user.name,
-          picture: session.user.picture
-        },
-        expiresAt: session.tokens.expiry_date,
-        hasConfig: config.isConfigured,
-        clientId: config.clientId,
-        projectId: config.projectId,
-        redirectUri: config.redirectUri,
-        providerMode: "cloudcode_api",
-        localServerDetected: false
-      });
-    }
-    res.json({
-      authenticated: false,
+  }
+};
+app.get("/api/auth/callback", oauthCallbackHandler);
+app.get("/auth/callback", oauthCallbackHandler);
+app.get("/api/auth/me", async (req, res) => {
+  const config = getGoogleOAuthConfig(req);
+  const session = getSessionFromRequest(req);
+  if (session) {
+    return res.json({
+      authenticated: true,
+      user: {
+        email: session.user.email,
+        name: session.user.name,
+        picture: session.user.picture
+      },
+      expiresAt: session.tokens.expiry_date,
       hasConfig: config.isConfigured,
-      missingVars: config.missing,
       clientId: config.clientId,
       projectId: config.projectId,
       redirectUri: config.redirectUri,
       providerMode: "cloudcode_api",
       localServerDetected: false
     });
+  }
+  res.json({
+    authenticated: false,
+    hasConfig: config.isConfigured,
+    missingVars: config.missing,
+    clientId: config.clientId,
+    projectId: config.projectId,
+    redirectUri: config.redirectUri,
+    providerMode: "cloudcode_api",
+    localServerDetected: false
   });
-  app2.post("/api/auth/logout", (_req, res) => {
-    clearSessionCookie(res);
-    res.json({ success: true, message: "Signed out successfully" });
-  });
-  app2.get("/api/accounts", async (req, res) => {
-    const session = getSessionFromRequest(req);
-    if (!session) {
-      return res.json({
-        accounts: [],
-        activeAccountId: void 0,
-        convexConnected: Boolean(process.env.CONVEX_URL)
-      });
-    }
-    const userEmail = session.user?.email;
-    try {
-      const localServer = discoverLocalAntigravityServer();
-      if (localServer) {
-        const localStatus = await queryLocalUserStatus(localServer);
-        if (localStatus.success && localStatus.user?.email) {
-          const email = localStatus.user.email;
-          const name = localStatus.user.name || "Antigravity User";
-          const tier = localStatus.user.tierName || "Google AI Pro";
-          const existingList = await fallbackStore.listAccounts(userEmail);
-          const existing = existingList.find((a) => a.email === email);
-          const accId = await fallbackStore.upsertAccount({
-            email,
-            name,
-            refreshToken: existing?.refreshToken || "",
-            tier,
-            plan: "Pro",
-            linkWithEmail: userEmail
-          });
-          if (localStatus.models && localStatus.models.length > 0) {
-            await fallbackStore.saveQuota(
-              accId,
-              email,
-              localStatus.models,
-              {
-                currentTier: tier,
-                plan: "Pro"
-              },
-              localStatus.groups
-            );
-          }
-        }
-      }
-    } catch (e) {
-      console.warn("Could not auto-sync local server account:", e);
-    }
-    const list = await fallbackStore.listAccounts(userEmail);
-    const activeAcc = await fallbackStore.getActiveAccount(userEmail);
-    const accounts = list.map((a) => {
-      const quotaModels = a.quota?.models || [];
-      const healthyCount = quotaModels.filter((m) => m.status === "healthy").length;
-      const warningCount = quotaModels.filter((m) => m.status === "warning").length;
-      const exhaustedCount = quotaModels.filter((m) => m.status === "exhausted").length;
-      return {
-        _id: a._id,
-        email: a.email,
-        name: a.name,
-        picture: a.picture,
-        tier: a.tier || a.quota?.tierInfo?.currentTier || "Google AI Pro",
-        isActive: a.isActive,
-        lastSyncedAt: a.lastSyncedAt,
-        syncStatus: a.syncStatus,
-        modelsCount: quotaModels.length,
-        healthyCount,
-        warningCount,
-        exhaustedCount,
-        quota: a.quota
-      };
-    });
-    const response = {
-      accounts,
-      activeAccountId: activeAcc?._id,
+});
+app.post("/api/auth/logout", (_req, res) => {
+  clearSessionCookie(res);
+  res.json({ success: true, message: "Signed out successfully" });
+});
+app.get("/api/accounts", async (req, res) => {
+  const session = getSessionFromRequest(req);
+  if (!session) {
+    return res.json({
+      accounts: [],
+      activeAccountId: void 0,
       convexConnected: Boolean(process.env.CONVEX_URL)
+    });
+  }
+  const userEmail = session.user?.email;
+  try {
+    const localServer = null;
+    if (localServer) {
+      const localStatus = await queryLocalUserStatus(localServer);
+      if (localStatus.success && localStatus.user?.email) {
+        const email = localStatus.user.email;
+        const name = localStatus.user.name || "Antigravity User";
+        const tier = localStatus.user.tierName || "Google AI Pro";
+        const existingList = await fallbackStore.listAccounts(userEmail);
+        const existing = existingList.find((a) => a.email === email);
+        const accId = await fallbackStore.upsertAccount({
+          email,
+          name,
+          refreshToken: existing?.refreshToken || "",
+          tier,
+          plan: "Pro",
+          linkWithEmail: userEmail
+        });
+        if (localStatus.models && localStatus.models.length > 0) {
+          await fallbackStore.saveQuota(
+            accId,
+            email,
+            localStatus.models,
+            {
+              currentTier: tier,
+              plan: "Pro"
+            },
+            localStatus.groups
+          );
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Could not auto-sync local server account:", e);
+  }
+  const list = await fallbackStore.listAccounts(userEmail);
+  const activeAcc = await fallbackStore.getActiveAccount(userEmail);
+  const accounts = list.map((a) => {
+    const quotaModels = a.quota?.models || [];
+    const healthyCount = quotaModels.filter((m) => m.status === "healthy").length;
+    const warningCount = quotaModels.filter((m) => m.status === "warning").length;
+    const exhaustedCount = quotaModels.filter((m) => m.status === "exhausted").length;
+    return {
+      _id: a._id,
+      email: a.email,
+      name: a.name,
+      picture: a.picture,
+      tier: a.tier || a.quota?.tierInfo?.currentTier || "Google AI Pro",
+      isActive: a.isActive,
+      lastSyncedAt: a.lastSyncedAt,
+      syncStatus: a.syncStatus,
+      modelsCount: quotaModels.length,
+      healthyCount,
+      warningCount,
+      exhaustedCount,
+      quota: a.quota
     };
-    res.json(response);
   });
-  app2.post("/api/accounts/switch", async (req, res) => {
-    const { accountId } = req.body;
-    if (!accountId) {
-      return res.status(400).json({ error: "accountId is required" });
-    }
-    const success = await fallbackStore.setActive(accountId);
-    if (!success) {
-      return res.status(404).json({ error: "Account not found" });
-    }
-    const sessionUser = getSessionFromRequest(req);
-    const active = await fallbackStore.getActiveAccount(sessionUser?.user?.email);
-    if (active) {
-      const session = {
-        user: {
-          id: active._id,
-          email: active.email,
-          name: active.name,
-          picture: active.picture
-        },
-        tokens: {
-          access_token: active.accessToken || "",
-          refresh_token: active.refreshToken,
-          expiry_date: active.tokenExpiry
-        },
-        createdAt: Date.now()
-      };
-      setSessionCookie(res, session, req);
-    }
-    res.json({ success: true, activeAccountId: accountId });
-  });
-  app2.delete("/api/accounts/:id", async (req, res) => {
-    const { id } = req.params;
-    const success = await fallbackStore.deleteAccount(id);
-    res.json({ success });
-  });
-  app2.post("/api/accounts/unlink", async (req, res) => {
-    const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: "email is required" });
-    }
-    const success = await fallbackStore.unlinkAccount(email);
-    res.json({ success });
-  });
-  app2.post("/api/workspaces/merge", async (req, res) => {
-    const { sourceEmail, targetEmail } = req.body;
-    if (!sourceEmail || !targetEmail) {
-      return res.status(400).json({ error: "sourceEmail and targetEmail are required" });
-    }
-    const success = await fallbackStore.mergeWorkspaces(sourceEmail, targetEmail);
-    res.json({ success });
-  });
-  app2.post("/api/accounts/sync", async (req, res) => {
-    const session = getSessionFromRequest(req);
-    const userEmail = session?.user?.email;
-    const { accountId } = req.body;
-    const list = await fallbackStore.listAccounts(userEmail);
-    const targets = accountId ? list.filter((a) => a._id === accountId) : list;
-    const results = await Promise.all(
-      targets.map(async (acc) => {
-        try {
-          if (!acc.refreshToken) {
-            const localServer = discoverLocalAntigravityServer();
-            if (localServer) {
-              const localStatus = await queryLocalUserStatus(localServer);
-              if (localStatus.success && localStatus.models.length > 0) {
-                const tier = localStatus.user?.tierName || "Google AI Pro";
-                await fallbackStore.saveQuota(
-                  acc._id,
-                  acc.email,
-                  localStatus.models,
-                  {
-                    currentTier: tier
-                  },
-                  localStatus.groups
-                );
-                return { email: acc.email, success: true, count: localStatus.models.length };
-              }
-            }
-          }
-          if (!acc.refreshToken) {
-            return { email: acc.email, success: false, error: "Account has no refresh token" };
-          }
-          let accessToken = acc.accessToken;
-          const now = Date.now();
-          if (!accessToken || !acc.tokenExpiry || acc.tokenExpiry - now < 3e5) {
-            try {
-              const fresh = await refreshAccessToken(acc.refreshToken);
-              accessToken = fresh.access_token;
-              await fallbackStore.updateAccountTokens(
+  const response = {
+    accounts,
+    activeAccountId: activeAcc?._id,
+    convexConnected: Boolean(process.env.CONVEX_URL)
+  };
+  res.json(response);
+});
+app.post("/api/accounts/switch", async (req, res) => {
+  const { accountId } = req.body;
+  if (!accountId) {
+    return res.status(400).json({ error: "accountId is required" });
+  }
+  const success = await fallbackStore.setActive(accountId);
+  if (!success) {
+    return res.status(404).json({ error: "Account not found" });
+  }
+  const sessionUser = getSessionFromRequest(req);
+  const active = await fallbackStore.getActiveAccount(sessionUser?.user?.email);
+  if (active) {
+    const session = {
+      user: {
+        id: active._id,
+        email: active.email,
+        name: active.name,
+        picture: active.picture
+      },
+      tokens: {
+        access_token: active.accessToken || "",
+        refresh_token: active.refreshToken,
+        expiry_date: active.tokenExpiry
+      },
+      createdAt: Date.now()
+    };
+    setSessionCookie(res, session, req);
+  }
+  res.json({ success: true, activeAccountId: accountId });
+});
+app.delete("/api/accounts/:id", async (req, res) => {
+  const { id } = req.params;
+  const success = await fallbackStore.deleteAccount(id);
+  res.json({ success });
+});
+app.post("/api/accounts/unlink", async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: "email is required" });
+  }
+  const success = await fallbackStore.unlinkAccount(email);
+  res.json({ success });
+});
+app.post("/api/workspaces/merge", async (req, res) => {
+  const { sourceEmail, targetEmail } = req.body;
+  if (!sourceEmail || !targetEmail) {
+    return res.status(400).json({ error: "sourceEmail and targetEmail are required" });
+  }
+  const success = await fallbackStore.mergeWorkspaces(sourceEmail, targetEmail);
+  res.json({ success });
+});
+app.post("/api/accounts/sync", async (req, res) => {
+  const session = getSessionFromRequest(req);
+  const userEmail = session?.user?.email;
+  const { accountId } = req.body;
+  const list = await fallbackStore.listAccounts(userEmail);
+  const targets = accountId ? list.filter((a) => a._id === accountId) : list;
+  const results = await Promise.all(
+    targets.map(async (acc) => {
+      try {
+        if (!acc.refreshToken) {
+          const localServer = null;
+          if (localServer) {
+            const localStatus = await queryLocalUserStatus(localServer);
+            if (localStatus.success && localStatus.models.length > 0) {
+              const tier = localStatus.user?.tierName || "Google AI Pro";
+              await fallbackStore.saveQuota(
                 acc._id,
-                fresh.access_token,
-                fresh.expiry_date || now + fresh.expires_in * 1e3,
-                fresh.refresh_token
+                acc.email,
+                localStatus.models,
+                {
+                  currentTier: tier
+                },
+                localStatus.groups
               );
-            } catch (refreshErr) {
-              console.warn(`[Sync] Token refresh failed for ${acc.email}:`, refreshErr);
+              return { email: acc.email, success: true, count: localStatus.models.length };
             }
           }
-          const quota = await fetchAntigravityQuota(accessToken);
-          if (quota.success && quota.models.length > 0) {
-            await fallbackStore.saveQuota(acc._id, acc.email, quota.models, quota.tierInfo, quota.groups);
-            return { email: acc.email, success: true, count: quota.models.length };
-          }
-          return { email: acc.email, success: false, error: quota.error };
-        } catch (e) {
-          return { email: acc.email, success: false, error: e.message };
         }
-      })
-    );
-    res.json({ success: true, results });
-  });
-  const quotaHandler = async (req, res) => {
-    let session = getSessionFromRequest(req);
-    if (session) {
-      let accessToken2 = session.tokens.access_token;
-      const now2 = Date.now();
-      const expiry2 = session.tokens.expiry_date;
-      if (expiry2 && expiry2 - now2 < 6e4 && session.tokens.refresh_token) {
-        try {
-          const freshTokens = await refreshAccessToken(session.tokens.refresh_token);
-          session.tokens.access_token = freshTokens.access_token;
-          if (freshTokens.expiry_date) {
-            session.tokens.expiry_date = freshTokens.expiry_date;
-          }
-          accessToken2 = freshTokens.access_token;
-          setSessionCookie(res, session);
-          if (session.user?.email) {
-            const accList = await fallbackStore.listAccounts(session.user.email);
-            const matching = accList.find((a) => a.email === session.user.email);
-            if (matching) {
-              await fallbackStore.updateAccountTokens(
-                matching._id,
-                freshTokens.access_token,
-                freshTokens.expiry_date || now2 + freshTokens.expires_in * 1e3,
-                freshTokens.refresh_token
-              );
-            }
-          }
-        } catch (refreshErr) {
-          console.warn("Failed to proactively refresh token:", refreshErr);
+        if (!acc.refreshToken) {
+          return { email: acc.email, success: false, error: "Account has no refresh token" };
         }
+        let accessToken = acc.accessToken;
+        const now = Date.now();
+        if (!accessToken || !acc.tokenExpiry || acc.tokenExpiry - now < 3e5) {
+          try {
+            const fresh = await refreshAccessToken(acc.refreshToken);
+            accessToken = fresh.access_token;
+            await fallbackStore.updateAccountTokens(
+              acc._id,
+              fresh.access_token,
+              fresh.expiry_date || now + fresh.expires_in * 1e3,
+              fresh.refresh_token
+            );
+          } catch (refreshErr) {
+            console.warn(`[Sync] Token refresh failed for ${acc.email}:`, refreshErr);
+          }
+        }
+        const quota = await fetchAntigravityQuota(accessToken);
+        if (quota.success && quota.models.length > 0) {
+          await fallbackStore.saveQuota(acc._id, acc.email, quota.models, quota.tierInfo, quota.groups);
+          return { email: acc.email, success: true, count: quota.models.length };
+        }
+        return { email: acc.email, success: false, error: quota.error };
+      } catch (e) {
+        return { email: acc.email, success: false, error: e.message };
       }
-      let quotaResult2 = await fetchAntigravityQuota(accessToken2);
-      if (!quotaResult2.success && quotaResult2.errorCode === "TOKEN_EXPIRED" && session.tokens.refresh_token) {
-        try {
-          const freshTokens = await refreshAccessToken(session.tokens.refresh_token);
-          session.tokens.access_token = freshTokens.access_token;
-          if (freshTokens.expiry_date) {
-            session.tokens.expiry_date = freshTokens.expiry_date;
-          }
-          accessToken2 = freshTokens.access_token;
-          setSessionCookie(res, session);
-          if (session.user?.email) {
-            const accList = await fallbackStore.listAccounts(session.user.email);
-            const matching = accList.find((a) => a.email === session.user.email);
-            if (matching) {
-              await fallbackStore.updateAccountTokens(
-                matching._id,
-                freshTokens.access_token,
-                freshTokens.expiry_date || now2 + freshTokens.expires_in * 1e3,
-                freshTokens.refresh_token
-              );
-            }
-          }
-          quotaResult2 = await fetchAntigravityQuota(accessToken2);
-        } catch (retryErr) {
-          console.error("Failed to refresh token after 401:", retryErr);
+    })
+  );
+  res.json({ success: true, results });
+});
+var quotaHandler = async (req, res) => {
+  let session = getSessionFromRequest(req);
+  if (session) {
+    let accessToken2 = session.tokens.access_token;
+    const now2 = Date.now();
+    const expiry2 = session.tokens.expiry_date;
+    if (expiry2 && expiry2 - now2 < 6e4 && session.tokens.refresh_token) {
+      try {
+        const freshTokens = await refreshAccessToken(session.tokens.refresh_token);
+        session.tokens.access_token = freshTokens.access_token;
+        if (freshTokens.expiry_date) {
+          session.tokens.expiry_date = freshTokens.expiry_date;
         }
-      }
-      if (quotaResult2.success && quotaResult2.models.length > 0) {
+        accessToken2 = freshTokens.access_token;
+        setSessionCookie(res, session);
         if (session.user?.email) {
           const accList = await fallbackStore.listAccounts(session.user.email);
           const matching = accList.find((a) => a.email === session.user.email);
           if (matching) {
-            await fallbackStore.saveQuota(
+            await fallbackStore.updateAccountTokens(
               matching._id,
-              session.user.email,
-              quotaResult2.models,
-              quotaResult2.tierInfo,
-              quotaResult2.groups
+              freshTokens.access_token,
+              freshTokens.expiry_date || now2 + freshTokens.expires_in * 1e3,
+              freshTokens.refresh_token
             );
           }
         }
-        const responsePayload2 = {
-          success: true,
-          account: {
-            email: session.user.email,
-            name: session.user.name,
-            picture: session.user.picture
-          },
-          lastUpdated: (/* @__PURE__ */ new Date()).toISOString(),
-          models: quotaResult2.models,
-          groups: quotaResult2.groups,
-          tierInfo: quotaResult2.tierInfo,
-          diagnostics: quotaResult2.diagnostics
-        };
-        return res.json(responsePayload2);
-      }
-    }
-    const localServer = discoverLocalAntigravityServer();
-    if (localServer) {
-      const quotaResult2 = await fetchAntigravityQuota();
-      if (quotaResult2.success && quotaResult2.models.length > 0) {
-        const email = session?.user.email || quotaResult2.raw?.userStatus?.email || "local@antigravity";
-        const name = session?.user.name || quotaResult2.raw?.userStatus?.name || "Antigravity Local User";
-        const responsePayload2 = {
-          success: true,
-          account: {
-            email,
-            name,
-            picture: session?.user.picture
-          },
-          lastUpdated: (/* @__PURE__ */ new Date()).toISOString(),
-          models: quotaResult2.models,
-          tierInfo: quotaResult2.tierInfo,
-          diagnostics: quotaResult2.diagnostics
-        };
-        return res.json(responsePayload2);
-      }
-    }
-    if (!session) {
-      return res.status(401).json({
-        success: false,
-        error: "Not authenticated. Antigravity IDE is not running locally and no Google OAuth session was found.",
-        errorCode: "UNAUTHENTICATED"
-      });
-    }
-    let accessToken = session.tokens.access_token;
-    const now = Date.now();
-    const expiry = session.tokens.expiry_date;
-    if (expiry && expiry - now < 6e4 && session.tokens.refresh_token) {
-      try {
-        const freshTokens = await refreshAccessToken(session.tokens.refresh_token);
-        session.tokens.access_token = freshTokens.access_token;
-        if (freshTokens.expiry_date) {
-          session.tokens.expiry_date = freshTokens.expiry_date;
-        }
-        accessToken = freshTokens.access_token;
-        setSessionCookie(res, session);
       } catch (refreshErr) {
         console.warn("Failed to proactively refresh token:", refreshErr);
       }
     }
-    let quotaResult = await fetchAntigravityQuota(accessToken);
-    if (!quotaResult.success && quotaResult.errorCode === "TOKEN_EXPIRED" && session.tokens.refresh_token) {
+    let quotaResult2 = await fetchAntigravityQuota(accessToken2);
+    if (!quotaResult2.success && quotaResult2.errorCode === "TOKEN_EXPIRED" && session.tokens.refresh_token) {
       try {
         const freshTokens = await refreshAccessToken(session.tokens.refresh_token);
         session.tokens.access_token = freshTokens.access_token;
         if (freshTokens.expiry_date) {
           session.tokens.expiry_date = freshTokens.expiry_date;
         }
-        accessToken = freshTokens.access_token;
+        accessToken2 = freshTokens.access_token;
         setSessionCookie(res, session);
-        quotaResult = await fetchAntigravityQuota(accessToken);
+        if (session.user?.email) {
+          const accList = await fallbackStore.listAccounts(session.user.email);
+          const matching = accList.find((a) => a.email === session.user.email);
+          if (matching) {
+            await fallbackStore.updateAccountTokens(
+              matching._id,
+              freshTokens.access_token,
+              freshTokens.expiry_date || now2 + freshTokens.expires_in * 1e3,
+              freshTokens.refresh_token
+            );
+          }
+        }
+        quotaResult2 = await fetchAntigravityQuota(accessToken2);
       } catch (retryErr) {
         console.error("Failed to refresh token after 401:", retryErr);
       }
     }
-    const responsePayload = {
-      success: quotaResult.success,
-      account: {
-        email: session.user.email,
-        name: session.user.name,
-        picture: session.user.picture
-      },
-      lastUpdated: (/* @__PURE__ */ new Date()).toISOString(),
-      models: quotaResult.models,
-      groups: quotaResult.groups,
-      tierInfo: quotaResult.tierInfo,
-      diagnostics: quotaResult.diagnostics,
-      error: quotaResult.error,
-      errorCode: quotaResult.errorCode,
-      details: quotaResult.details
-    };
-    if (!quotaResult.success) {
-      return res.status(200).json(responsePayload);
-    }
-    res.json(responsePayload);
-  };
-  app2.get("/api/quota", quotaHandler);
-  app2.post("/api/quota/refresh", quotaHandler);
-  app2.use((err, _req, res, _next) => {
-    console.error("[API Error]:", err);
-    res.status(500).json({ error: err?.message || "Internal Server Error", stack: err?.stack });
-  });
-  return app2;
-}
-var app = createApiApp();
-var isDirectRun = Boolean(
-  process.argv[1] && (process.argv[1].endsWith("server.ts") || process.argv[1].endsWith("server.cjs")) && !process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME
-);
-if (isDirectRun) {
-  const PORT = Number(process.env.PORT) || 3001;
-  async function startServer() {
-    if (process.env.NODE_ENV !== "production") {
-      const vite = await createViteServer({
-        server: {
-          middlewareMode: true,
-          watch: {
-            ignored: [
-              "**/.accounts_store.json",
-              "**/.accounts_store.json*",
-              "**/lib/**",
-              "**/dist/**",
-              "**/.git/**",
-              "**/.gemini/**",
-              "**/*.log"
-            ]
-          }
+    if (quotaResult2.success && quotaResult2.models.length > 0) {
+      if (session.user?.email) {
+        const accList = await fallbackStore.listAccounts(session.user.email);
+        const matching = accList.find((a) => a.email === session.user.email);
+        if (matching) {
+          await fallbackStore.saveQuota(
+            matching._id,
+            session.user.email,
+            quotaResult2.models,
+            quotaResult2.tierInfo,
+            quotaResult2.groups
+          );
+        }
+      }
+      const responsePayload2 = {
+        success: true,
+        account: {
+          email: session.user.email,
+          name: session.user.name,
+          picture: session.user.picture
         },
-        appType: "spa"
-      });
-      app.use(vite.middlewares);
-    } else {
-      const distPath = path.join(process.cwd(), "dist");
-      app.use(express.static(distPath));
-      app.get("*", (_req, res) => {
-        res.sendFile(path.join(distPath, "index.html"));
-      });
+        lastUpdated: (/* @__PURE__ */ new Date()).toISOString(),
+        models: quotaResult2.models,
+        groups: quotaResult2.groups,
+        tierInfo: quotaResult2.tierInfo,
+        diagnostics: quotaResult2.diagnostics
+      };
+      return res.json(responsePayload2);
     }
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Antigravity Quota Watcher server running on port ${PORT}`);
+  }
+  const localServer = null;
+  if (localServer) {
+    const quotaResult2 = await fetchAntigravityQuota();
+    if (quotaResult2.success && quotaResult2.models.length > 0) {
+      const email = session?.user.email || quotaResult2.raw?.userStatus?.email || "local@antigravity";
+      const name = session?.user.name || quotaResult2.raw?.userStatus?.name || "Antigravity Local User";
+      const responsePayload2 = {
+        success: true,
+        account: {
+          email,
+          name,
+          picture: session?.user.picture
+        },
+        lastUpdated: (/* @__PURE__ */ new Date()).toISOString(),
+        models: quotaResult2.models,
+        tierInfo: quotaResult2.tierInfo,
+        diagnostics: quotaResult2.diagnostics
+      };
+      return res.json(responsePayload2);
+    }
+  }
+  if (!session) {
+    return res.status(401).json({
+      success: false,
+      error: "Not authenticated. Antigravity IDE is not running locally and no Google OAuth session was found.",
+      errorCode: "UNAUTHENTICATED"
     });
   }
-  startServer().catch((err) => {
-    console.error("Server failed to start:", err);
-    process.exit(1);
-  });
-}
-var server_default = app;
+  let accessToken = session.tokens.access_token;
+  const now = Date.now();
+  const expiry = session.tokens.expiry_date;
+  if (expiry && expiry - now < 6e4 && session.tokens.refresh_token) {
+    try {
+      const freshTokens = await refreshAccessToken(session.tokens.refresh_token);
+      session.tokens.access_token = freshTokens.access_token;
+      if (freshTokens.expiry_date) {
+        session.tokens.expiry_date = freshTokens.expiry_date;
+      }
+      accessToken = freshTokens.access_token;
+      setSessionCookie(res, session);
+    } catch (refreshErr) {
+      console.warn("Failed to proactively refresh token:", refreshErr);
+    }
+  }
+  let quotaResult = await fetchAntigravityQuota(accessToken);
+  if (!quotaResult.success && quotaResult.errorCode === "TOKEN_EXPIRED" && session.tokens.refresh_token) {
+    try {
+      const freshTokens = await refreshAccessToken(session.tokens.refresh_token);
+      session.tokens.access_token = freshTokens.access_token;
+      if (freshTokens.expiry_date) {
+        session.tokens.expiry_date = freshTokens.expiry_date;
+      }
+      accessToken = freshTokens.access_token;
+      setSessionCookie(res, session);
+      quotaResult = await fetchAntigravityQuota(accessToken);
+    } catch (retryErr) {
+      console.error("Failed to refresh token after 401:", retryErr);
+    }
+  }
+  const responsePayload = {
+    success: quotaResult.success,
+    account: {
+      email: session.user.email,
+      name: session.user.name,
+      picture: session.user.picture
+    },
+    lastUpdated: (/* @__PURE__ */ new Date()).toISOString(),
+    models: quotaResult.models,
+    groups: quotaResult.groups,
+    tierInfo: quotaResult.tierInfo,
+    diagnostics: quotaResult.diagnostics,
+    error: quotaResult.error,
+    errorCode: quotaResult.errorCode,
+    details: quotaResult.details
+  };
+  if (!quotaResult.success) {
+    return res.status(200).json(responsePayload);
+  }
+  res.json(responsePayload);
+};
+app.get("/api/quota", quotaHandler);
+app.post("/api/quota/refresh", quotaHandler);
+app.use((err, _req, res, _next) => {
+  console.error("[API Error]:", err);
+  res.status(500).json({ error: err?.message || "Internal Server Error", stack: err?.stack });
+});
+var index_default = app;
 export {
-  createApiApp,
-  server_default as default
+  index_default as default
 };
