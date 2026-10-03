@@ -53,7 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={onRefreshAll}
               disabled={loading}
               title="Refresh quotas"
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 text-white shadow-sm shadow-sky-950/50 transition active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow-sm shadow-blue-950/50 transition active:scale-[0.98] disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
@@ -96,7 +96,7 @@ export const Header: React.FC<HeaderProps> = ({
               id="btn-logout"
               onClick={onLogout}
               title="Sign out"
-              className="p-2 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-950/30 transition cursor-pointer"
+              className="p-2 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-red-950/30 transition cursor-pointer"
             >
               <LogOut className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
             </button>
@@ -120,7 +120,7 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={onAddAccount}
               disabled={loading}
               title="Sign in with Google"
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 text-white shadow-sm shadow-sky-950/50 transition active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow-sm shadow-blue-950/50 transition active:scale-[0.98] disabled:opacity-50 cursor-pointer"
             >
               <span>{loading ? 'Connecting...' : 'Sign in with Google'}</span>
             </button>

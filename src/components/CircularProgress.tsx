@@ -18,14 +18,14 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
   const clampedPercentage = Math.max(0, Math.min(100, percentage));
   const strokeDashoffset = circumference - (clampedPercentage / 100) * circumference;
 
-  let strokeColor = '#10b981'; // emerald-500
-  let bgColor = 'rgba(16, 185, 129, 0.12)';
+  let strokeColor = '#22c55e'; // green-500 (#22C55E)
+  let bgColor = 'rgba(34, 197, 94, 0.12)';
 
   if (clampedPercentage <= 10 || status === 'exhausted') {
-    strokeColor = '#f43f5e'; // rose-500
-    bgColor = 'rgba(244, 63, 94, 0.12)';
+    strokeColor = '#ef4444'; // red-500 (#EF4444)
+    bgColor = 'rgba(239, 68, 68, 0.12)';
   } else if (clampedPercentage <= 30 || status === 'warning') {
-    strokeColor = '#f59e0b'; // amber-500
+    strokeColor = '#f59e0b'; // amber-500 (#F59E0B)
     bgColor = 'rgba(245, 158, 11, 0.12)';
   }
 

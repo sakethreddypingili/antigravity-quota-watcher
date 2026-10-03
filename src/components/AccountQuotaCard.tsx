@@ -63,11 +63,11 @@ const LimitRow: React.FC<LimitRowProps> = ({
             <span
               className={`inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border ${
                 hasStarted
-                  ? 'bg-sky-950/40 text-sky-300 border-sky-800/40'
-                  : 'bg-zinc-800/50 text-zinc-400 border-zinc-700/40'
+                  ? 'bg-blue-950/40 text-blue-300 border-blue-800/40'
+                  : 'bg-zinc-800/60 text-zinc-400 border-zinc-700/40'
               }`}
             >
-              <Clock className={`w-2.5 h-2.5 ${hasStarted ? 'text-sky-400' : 'text-zinc-500'}`} />
+              <Clock className={`w-2.5 h-2.5 ${hasStarted ? 'text-blue-400' : 'text-zinc-500'}`} />
               {timerBadge}
             </span>
           )}
@@ -202,7 +202,7 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
     <div
       className={`rounded-xl border transition-all duration-200 flex flex-col justify-between shadow-[0_4px_12px_rgba(0,0,0,0.35)] ${
         account.isActive
-          ? 'bg-zinc-900/80 border-sky-500/40 ring-1 ring-sky-500/10'
+          ? 'bg-zinc-900/80 border-blue-500/40 ring-1 ring-blue-500/10'
           : 'bg-zinc-900/60 border-zinc-800/80 hover:border-zinc-700/80'
       }`}
     >
@@ -225,7 +225,7 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
                 <span
                   className={`text-[9px] font-medium px-1.5 py-0.5 rounded border ${
                     isProOrUltra
-                      ? 'bg-sky-950/50 text-sky-300 border-sky-800/40'
+                      ? 'bg-blue-950/40 text-blue-300 border-blue-800/40'
                       : 'bg-zinc-800 text-zinc-400 border-zinc-700/50'
                   }`}
                 >
@@ -244,7 +244,7 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
               title="Refresh Quota"
               className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 transition disabled:opacity-50 cursor-pointer"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-sky-400' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-400' : ''}`} />
             </button>
 
             {canUnlink && onUnlinkAccount && (
@@ -268,7 +268,7 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
                 }
               }}
               title="Delete Account"
-              className="p-1 rounded text-zinc-400 hover:text-rose-400 hover:bg-rose-950/20 transition cursor-pointer"
+              className="p-1 rounded text-zinc-400 hover:text-red-400 hover:bg-red-950/20 transition cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -281,12 +281,11 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
           {displayGroups.map((group, gIdx) => {
             const isGemini = group.displayName.toLowerCase().includes('gemini');
             const Icon = isGemini ? Cpu : Box;
-            const iconColor = isGemini ? 'text-sky-400' : 'text-indigo-400';
 
             return (
               <div key={gIdx} className="space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs">
-                  <Icon className={`w-3.5 h-3.5 ${iconColor}`} />
+                  <Icon className="w-3.5 h-3.5 text-zinc-400" />
                   <span className="font-medium text-zinc-300">{group.displayName}</span>
                 </div>
 

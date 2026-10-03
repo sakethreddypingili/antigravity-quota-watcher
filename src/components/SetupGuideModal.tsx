@@ -46,7 +46,7 @@ export const SetupGuideModal: React.FC<SetupGuideModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/90">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-sky-950/60 text-sky-400 border border-sky-800/40">
+            <div className="p-2 rounded-xl bg-blue-950/60 text-blue-400 border border-blue-800/40">
               <Cloud className="w-5 h-5" />
             </div>
             <div>

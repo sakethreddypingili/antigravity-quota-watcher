@@ -41,8 +41,38 @@ export interface GoogleTokens {
 }
 
 export function getRedirectUri(req?: Request): string {
+  // If req provides host/forwarded-host, check if incoming request is on production
+  if (req) {
+    const rawHost = (req.headers['x-forwarded-host'] || req.headers.host || '') as string;
+    const host = rawHost.split(',')[0].trim();
+    const rawProto = (req.headers['x-forwarded-proto'] || req.protocol || 'http') as string;
+    const proto = rawProto.split(',')[0].trim();
+
+    // If request is from an external/production host (not localhost), use incoming origin
+    if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+      return `${proto}://${host}/api/auth/callback`;
+    }
+  }
+
+  // Explicit GOOGLE_REDIRECT_URI if configured
   if (process.env.GOOGLE_REDIRECT_URI && process.env.GOOGLE_REDIRECT_URI.trim() !== '') {
-    return process.env.GOOGLE_REDIRECT_URI.trim();
+    const configured = process.env.GOOGLE_REDIRECT_URI.trim();
+    // If running on Vercel production but configured points to localhost, prefer VERCEL_PROJECT_PRODUCTION_URL
+    if (process.env.VERCEL && configured.includes('localhost')) {
+      const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+      if (vercelHost) {
+        return `https://${vercelHost.replace(/^https?:\/\//, '').replace(/\/+$/, '')}/api/auth/callback`;
+      }
+    }
+    return configured;
+  }
+
+  // Vercel auto-injected system domain
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.replace(/^https?:\/\//, '').replace(/\/+$/, '')}/api/auth/callback`;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL.replace(/^https?:\/\//, '').replace(/\/+$/, '')}/api/auth/callback`;
   }
 
   if (process.env.APP_URL && process.env.APP_URL.trim() !== '') {

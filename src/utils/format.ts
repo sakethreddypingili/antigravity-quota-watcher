@@ -15,26 +15,26 @@ export function getStatusTheme(status: QuotaStatusLevel) {
   switch (status) {
     case 'healthy':
       return {
-        badgeBg: 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
-        progressBar: 'bg-emerald-500',
-        dot: 'bg-emerald-500',
-        text: 'text-emerald-600 dark:text-emerald-400',
+        badgeBg: 'bg-green-500/10 text-green-400 border-green-800/40',
+        progressBar: 'bg-green-500',
+        dot: 'bg-green-500',
+        text: 'text-green-400',
         label: 'Healthy',
       };
     case 'warning':
       return {
-        badgeBg: 'bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800',
+        badgeBg: 'bg-amber-500/10 text-amber-400 border-amber-800/40',
         progressBar: 'bg-amber-500',
         dot: 'bg-amber-500',
-        text: 'text-amber-600 dark:text-amber-400',
+        text: 'text-amber-400',
         label: 'Low Quota',
       };
     case 'exhausted':
       return {
-        badgeBg: 'bg-rose-500/10 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800',
-        progressBar: 'bg-rose-500',
-        dot: 'bg-rose-500',
-        text: 'text-rose-600 dark:text-rose-400',
+        badgeBg: 'bg-red-500/10 text-red-400 border-red-800/40',
+        progressBar: 'bg-red-500',
+        dot: 'bg-red-500',
+        text: 'text-red-400',
         label: 'Exhausted',
       };
     case 'unknown':

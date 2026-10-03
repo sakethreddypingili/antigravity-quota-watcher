@@ -60,11 +60,11 @@ export const LoginView: React.FC<LoginViewProps> = ({
         {/* Minimal Distraction-Free Card */}
         <div className="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-8 sm:p-10 shadow-[0_25px_60px_rgba(0,0,0,0.6)] relative overflow-hidden text-center">
           {/* Subtle Ambient Backlight */}
-          <div className="absolute top-0 right-1/2 translate-x-1/2 -mt-16 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-0 right-1/2 translate-x-1/2 -mt-16 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
           {/* Brand Icon */}
           <div className="relative z-10 inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-zinc-800/80 border border-zinc-700/60 shadow-lg mb-5">
-            <Sparkles className="w-7 h-7 text-sky-400" />
+            <Sparkles className="w-7 h-7 text-blue-400" />
           </div>
 
           {/* Heading & Tagline */}
