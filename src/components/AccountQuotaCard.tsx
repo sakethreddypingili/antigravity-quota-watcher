@@ -20,15 +20,11 @@ interface AccountQuotaCardProps {
   canUnlink?: boolean;
 }
 
-// Compute human-readable relative time until the next rolling weekly reset (Sunday 00:00 UTC)
-function getWeeklyCountdown(): string {
+// Compute human-readable relative time for weekly quota window (rolling 7-day cycle)
+function getWeeklyCountdown(offsetMs: number = 0): string {
   const now = new Date();
-  const target = new Date(now);
-  const day = now.getUTCDay();
-  const daysUntilSunday = (7 - day) % 7 || 7;
-  target.setUTCDate(now.getUTCDate() + daysUntilSunday);
-  target.setUTCHours(0, 0, 0, 0);
-
+  // Rolling 7-day (168h) quota window from initial usage
+  const target = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000) - offsetMs);
   const diffMs = target.getTime() - now.getTime();
   if (diffMs <= 0) return 'Resetting now';
 
@@ -37,7 +33,7 @@ function getWeeklyCountdown(): string {
   const remHours = totalHours % 24;
 
   if (days > 0) {
-    return `${days}d ${remHours}h`;
+    return remHours > 0 ? `${days}d ${remHours}h` : `${days}d`;
   }
   return `${remHours}h`;
 }
@@ -312,7 +308,8 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
                       fiveHourBucket.resetTimeRelative &&
                       weeklyBucket.resetTimeRelative === fiveHourBucket.resetTimeRelative &&
                       // If timer is under 24 hours (e.g. "3h 39m"), it belongs to the 5-hour rolling window, not weekly!
-                      !weeklyBucket.resetTimeRelative.includes('d')
+                      !weeklyBucket.resetTimeRelative.includes('d') &&
+                      !weeklyBucket.resetTimeRelative.toLowerCase().includes('day')
                     );
 
                     return group.buckets.map((bucket, bIdx) => {
@@ -342,7 +339,7 @@ export const AccountQuotaCard: React.FC<AccountQuotaCardProps> = ({
                       let timerBadge = 'Starts on usage';
                       if (isWeekly && hasDuplicateTimer) {
                         // The short timer was erroneously copied from the 5h window. Use the real rolling weekly countdown.
-                        timerBadge = `in ${getWeeklyCountdown()}`;
+                        timerBadge = `in ${getWeeklyCountdown(2 * 60 * 60 * 1000)}`;
                       } else if (hasStarted) {
                         let rawTimer = bucket.resetTimeRelative;
                         if (!rawTimer && bucket.description && bucket.description.includes('in ')) {

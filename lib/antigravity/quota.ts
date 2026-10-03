@@ -85,26 +85,23 @@ export function formatResetTime(isoString: string | null | undefined): {
 }
 
 /**
- * Compute the next weekly quota cycle reset time (Sunday 00:00 UTC)
+ * Compute the next weekly quota cycle reset time (rolling 7-day window)
  */
-export function getNextWeeklyResetTime(): {
+export function getNextWeeklyResetTime(offsetMs: number = 0): {
   iso: string;
   formatted: string;
   relative: string;
 } {
   const now = new Date();
-  const target = new Date(now);
-  const day = now.getUTCDay();
-  const daysUntilSunday = (7 - day) % 7 || 7;
-  target.setUTCDate(now.getUTCDate() + daysUntilSunday);
-  target.setUTCHours(0, 0, 0, 0);
+  // Rolling 7-day (168h) quota window from initial usage
+  const target = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000) - offsetMs);
 
   const iso = target.toISOString();
   const { formatted, relative } = formatResetTime(iso);
   return {
     iso,
     formatted: formatted || iso,
-    relative: relative || 'Weekly cycle',
+    relative: relative || '7d',
   };
 }
 

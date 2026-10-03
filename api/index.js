@@ -592,19 +592,15 @@ function formatResetTime(isoString) {
     return { formatted: isoString, relative: null };
   }
 }
-function getNextWeeklyResetTime() {
+function getNextWeeklyResetTime(offsetMs = 0) {
   const now = /* @__PURE__ */ new Date();
-  const target = new Date(now);
-  const day = now.getUTCDay();
-  const daysUntilSunday = (7 - day) % 7 || 7;
-  target.setUTCDate(now.getUTCDate() + daysUntilSunday);
-  target.setUTCHours(0, 0, 0, 0);
+  const target = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1e3 - offsetMs);
   const iso = target.toISOString();
   const { formatted, relative } = formatResetTime(iso);
   return {
     iso,
     formatted: formatted || iso,
-    relative: relative || "Weekly cycle"
+    relative: relative || "7d"
   };
 }
 function identifyModelFamily2(modelId) {

@@ -64,15 +64,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const geminiModels = models.filter((m) => m.family === 'gemini');
   const claudeGptModels = models.filter((m) => m.family === 'claude' || m.family === 'gpt');
 
-  // Compute human-readable relative time until the next rolling weekly reset (Sunday 00:00 UTC)
-  const getWeeklyCountdown = () => {
+  // Compute human-readable relative time for weekly quota window (rolling 7-day cycle)
+  const getWeeklyCountdown = (offsetMs: number = 0) => {
     const now = new Date();
-    const target = new Date(now);
-    const day = now.getUTCDay();
-    const daysUntilSunday = (7 - day) % 7 || 7;
-    target.setUTCDate(now.getUTCDate() + daysUntilSunday);
-    target.setUTCHours(0, 0, 0, 0);
-
+    const target = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000) - offsetMs);
     const diffMs = target.getTime() - now.getTime();
     if (diffMs <= 0) return 'Resetting now';
 
@@ -80,7 +75,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     const days = Math.floor(totalHours / 24);
     const remHours = totalHours % 24;
 
-    return days > 0 ? `${days}d ${remHours}h` : `${remHours}h`;
+    return days > 0 ? (remHours > 0 ? `${days}d ${remHours}h` : `${days}d`) : `${remHours}h`;
   };
 
   const weeklyCountdown = getWeeklyCountdown();
